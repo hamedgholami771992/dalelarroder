@@ -1,0 +1,122 @@
+---
+title: 'Learning MDX Syntax'
+date: '2022-04-14'
+tags: ['mdx']
+draft: false
+author: 'Hamed Gholami'
+summary: 'learning mdx syntax'
+---
+
+# Learning MDX Syntax
+
+MDX is a powerful syntax that lets you write JSX in your markdown documents. It's perfect for React applications where you want to mix markdown and interactive elements.
+
+## Basic Markdown Elements
+
+MDX supports standard Markdown elements.
+
+### Headers
+
+Use `#` for headers.
+
+```markdown
+# Header 1
+
+## Header 2
+
+### Header 3
+```
+
+### Text Formatting
+
+Bold and italic text.
+
+```
+**bold text**
+*italic text*
+```
+
+### Lists
+
+Unordered and ordered lists.
+
+```
+- Item 1
+- Item 2
+
+1. First item
+2. Second item
+```
+
+### Hyperlinks
+
+Creating links.
+
+```
+[Google](https://www.google.com)
+
+```
+
+### Images
+
+Embedding images.
+
+```
+![Alt text](url-to-image)
+
+```
+
+### Code Blocks
+
+Code blocks with syntax highlighting.
+
+```
+` ` `
+const hello = "Hello, world!";
+console.log(hello);
+` ` `
+```
+
+### Incorporating JSX
+
+MDX allows embedding JSX directly in your markdown.
+
+```
+This is a paragraph with a JSX <button>Button</button> inside.
+```
+
+You can also import and use React components.
+
+```
+import MyComponent from './MyComponent';
+Here's my component: <MyComponent />
+```
+
+### Inline Styling
+
+Applying inline styles using JSX.
+
+```
+This is a paragraph with <span style={{ color: 'red' }}>red text</span>.
+
+```
+
+### Code Snippets
+
+Include code snippets in your programming articles.
+
+```
+def hello():
+    print("Hello, World!")
+
+```
+
+Or embed interactive code editors.
+
+```
+<iframe src="https://codesandbox.io/embed/new"></iframe>
+
+```
+
+Remember, the power of MDX lies in its ability to blend markdown and JSX, making your content both rich and interactive.
+This example covers various elements you can use in an MDX document, including basic markdown syntax, JSX elements, code blocks, and frontmatter. You can edit or expand upon this template to suit the specific needs of your article.

@@ -1,0 +1,222 @@
+---
+title: 'grpc in a nutshell'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'This article will show you how to implement grpc API server in nest'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+## a comprehensive sample for a .proto file
+
+```proto
+
+
+syntax = "proto3";
+
+package example;
+
+// Importing necessary options for HTTP mapping (e.g., for use with grpc-gateway).
+import "google/api/annotations.proto";
+
+// The greeting service definition.
+service GreetingService {
+  // A simple RPC method that gets a greeting message for a given name.
+  rpc SayHello (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      get: "/v1/example/echo/{name}"
+    };
+  };
+
+  // A server streaming RPC method that sends multiple greeting messages.
+  rpc LotsOfReplies (HelloRequest) returns (stream HelloReply) {}
+
+  // A client streaming RPC method that receives a stream of messages.
+  rpc LotsOfGreetings (stream HelloRequest) returns (HelloReply) {}
+
+  // A Bidirectional streaming RPC method.
+  rpc BidiHello (stream HelloRequest) returns (stream HelloReply) {}
+}
+
+// The request message containing the user's name.
+message HelloRequest {
+  string name = 1;
+}
+
+// The response message containing the greetings.
+message HelloReply {
+  string message = 1;
+}
+
+// An example of a complex message type with various field types.
+message ComplexMessage {
+  string string_field = 1;
+  bool bool_field = 2;
+  int32 int_field = 3;
+  float float_field = 4;
+  NestedMessage nested_field = 5;
+
+  // An example of an enum within a message.
+  enum SampleEnum {
+    UNKNOWN = 0;
+    STARTED = 1;
+    RUNNING = 2;
+  }
+
+  SampleEnum status = 6;
+
+  // An example of repeated fields (similar to arrays).
+  repeated string string_list = 7;
+
+  // An example of a map field (similar to a dictionary or hash map).
+  map<string, NestedMessage> map_field = 8;
+
+  // An example of a oneof field, where only one of the fields can be set.
+  oneof test_oneof {
+    string name = 9;
+    int32 id = 10;
+  }
+}
+
+// An example of a nested message.
+message NestedMessage {
+  string some_value = 1;
+}
+
+
+// ** protocol buffers use message elements to define both parameter types and return types
+```
+
+## a simple grpc client-server communication
+
+### Step 1: Define the .proto file
+
+Let's start with the greeting.proto file we discussed earlier, which defines a simple GreetingService:
+
+```proto
+
+syntax = "proto3";
+
+package greeting;
+
+// The greeting service definition.
+service GreetingService {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {}
+}
+
+// The request message containing the user's name.
+message HelloRequest {
+  string name = 1;
+}
+
+// The response message containing the greetings.
+message HelloReply {
+  string message = 1;
+}
+
+```
+
+Save this content into a file named greeting.proto.
+
+### Step 2: Generate the gRPC code
+
+Use the grpc-tools package to generate the gRPC client and server code based on your .proto file.
+
+```bash
+npm install -g grpc-tools
+grpc_tools_node_protoc --js_out=import_style=commonjs,binary:./server --grpc_out=./server --proto_path=./ greeting.proto
+
+```
+
+This command generates greeting_pb.js and greeting_grpc_pb.js in the ./server directory. These files contain the JavaScript objects and service stubs for your gRPC service.
+
+### Step 3: Implement the server
+
+Now create a file named server.js for your gRPC server.
+
+```js
+const grpc = require('grpc');
+const protoLoader = require('@grpc/proto-loader');
+const packageDefinition = protoLoader.loadSync('greeting.proto', {});
+const greetingPackage = grpc.loadPackageDefinition(packageDefinition).greeting;
+
+// Implement the SayHello RPC method.
+function sayHello(call, callback) {
+  callback(null, { message: 'Hello ' + call.request.name });
+}
+
+// Main server function
+function main() {
+  const server = new grpc.Server();
+  server.addService(greetingPackage.GreetingService.service, { sayHello: sayHello });
+  server.bind('0.0.0.0:50051', grpc.ServerCredentials.createInsecure());
+  console.log('Server running at http://0.0.0.0:50051');
+  server.start();
+}
+
+main();
+```
+
+This code sets up a gRPC server that listens on port 50051 and responds to SayHello RPC calls by sending back a greeting message.
+
+### Step 4: Implement the client
+
+Next, create a file named client.js for your gRPC client.
+
+```js
+const grpc = require('grpc');
+const protoLoader = require('@grpc/proto-loader');
+const packageDefinition = protoLoader.loadSync('greeting.proto', {});
+const greetingPackage = grpc.loadPackageDefinition(packageDefinition).greeting;
+
+function main() {
+  const client = new greetingPackage.GreetingService(
+    'localhost:50051',
+    grpc.credentials.createInsecure()
+  );
+  client.sayHello({ name: 'World' }, function (err, response) {
+    console.log('Greeting:', response.message);
+  });
+}
+
+main();
+```
+
+This client code creates a new GreetingService client that connects to our server on localhost:50051 and sends a SayHello RPC with the name "World".
+
+### Step 5: Install Dependencies and Run
+
+First, you need to install the necessary Node.js packages:
+
+```bash
+npm init -y
+npm install grpc @grpc/proto-loader
+
+```
+
+Now you can start your gRPC server:
+
+```bash
+node server.js
+
+```
+
+And in a separate terminal, run your gRPC client:
+
+```bash
+node client.js
+
+```
+
+When you run the client, you should see the output:
+
+```bash
+Greeting: Hello World
+```
+
+This is a very basic example to get you started with gRPC in Node.js. Real-world applications typically involve more complex setups, including bidirectional streaming, error handling, authentication, and more. However, this should provide a clear and understandable foundation for creating gRPC applications.

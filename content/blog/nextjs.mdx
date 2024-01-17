@@ -1,0 +1,83 @@
+---
+title: 'nextjs'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'This article will show you how to implement grpc API server in nest'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+## whats React Server Component
+
+React Server Components are a feature introduced in React to enhance the capabilities of web applications by allowing components to be rendered on the server side. This concept brings a unique blend of server-side and client-side rendering, offering various benefits in performance, code organization, and data fetching. Here's a more detailed explanation of what React Server Components are and how they work:
+
+What are React Server Components?
+Server-Side Rendering: Unlike traditional React components that render in the browser (client-side), React Server Components render on the server. This means the server does the work of generating HTML or other output, which is then sent to the client.
+
+No Client-Side JavaScript Overhead: Since these components are rendered on the server, they do not add any JavaScript bundle size to the client-side. This reduces the amount of code the browser needs to download, parse, and execute, leading to faster load times.
+
+Seamless Integration with Client Components: React Server Components can coexist and interoperate with client-side components. You can have a mix of server components (for parts of your app that don't require direct user interaction) and client components (for interactive parts).
+
+How Do They Work?
+Rendering Process:
+
+The server runs React components to generate HTML or other formats.
+Only components marked as server components (usually with a .server.js extension) are processed on the server.
+These components can fetch data, execute logic, and render output without involving the client’s resources.
+Data Fetching:
+
+Server components can directly fetch data on the server. This is a significant improvement, as it avoids exposing data fetching logic to the client.
+They handle data fetching during the rendering process, and the fetched data gets incorporated into the rendered output.
+Sending to Client:
+
+The server sends the rendered HTML or other output to the client. The client displays this output.
+Any interactivity needed on the page is handled by client-side components.
+Hydration:
+
+Unlike traditional server-side rendering, React Server Components do not require hydration (a process where the client-side React picks up where server-rendering left off).
+This further reduces the amount of JavaScript that needs to be sent to the client.
+Advantages
+Performance: Reduced bundle size and faster load times because less JavaScript is sent to the client.
+Efficiency: Server resources are used for rendering, offloading work from the client.
+Flexibility: You can decide which parts of your app are static and can be rendered on the server, and which parts need to be dynamic and rendered on the client.
+Streamlined Data Fetching: Direct and efficient data fetching on the server side, without exposing APIs or logic to the client.
+Use Cases
+Static Content Generation: Ideal for pages or components that display data fetched from a database, API, or file system, where the content does not change frequently.
+SEO Optimization: Since content is rendered on the server, it's readily available for search engine crawlers, improving SEO.
+React Server Components represent a significant step in optimizing web applications for performance and user experience, particularly for scenarios where a significant portion of the content is static or doesn't require immediate client-side interactivity.
+
+### what kind of components can considered as a React Server Component?
+
+React Server Components have specific characteristics and use cases, distinguishing them from regular client-side components. Here's an overview of what kind of components can typically be React Server Components:
+
+Components Rendering Static or Infrequently Updated Data: Ideal for displaying content that doesn't change often, such as blog posts, product descriptions, or documentation. Since this content is relatively static, rendering it on the server can improve performance.
+
+Data-Intensive Components: Components that need to fetch and render a lot of data, but don't require immediate user interaction, are good candidates. Fetching and processing this data server-side can offload work from the client, resulting in a smoother user experience.
+
+SEO-Critical Content: Components that generate content important for search engine optimization (SEO), like textual content, headings, and metadata, can benefit from server-side rendering. This ensures that the content is crawlable by search engines as it's already in the HTML sent from the server.
+
+Complex Computations: Components that perform complex calculations or processing, which might be too heavy for the client, can be rendered server-side to leverage more powerful server resources.
+
+Initial Page Load Components: For components that are crucial for the initial rendering of the page, server-side rendering can provide the complete HTML to the browser, leading to a faster perceived load time.
+
+Non-Interactive Components: Components that don't require immediate user interaction, such as footers, headers, or static sidebars, are suitable as server components. These components typically do not need to be dynamic or responsive to user actions.
+
+Characteristics of React Server Components:
+File Extension: They usually have a .server.js file extension to differentiate them from client-side components.
+
+No Use of State or Effects: React Server Components do not support local state or side effects like useState or useEffect. This is because they are rendered on the server and do not participate in the interactivity on the client side.
+
+Limited Event Handling: Direct event handling (like clicks or user input) is not available in server components. Instead, interactive elements should be delegated to client components.
+
+Direct Data Fetching: They can directly fetch data in their body without using hooks like useEffect or useFetch. This is a significant benefit for data fetching efficiency and simplicity.
+
+In summary, React Server Components are best suited for parts of your application that deal with static or infrequently updated content, heavy data-fetching, non-interactive elements, and SEO-critical content. They help in offloading processing from the client to the server, improving overall application performance and user experience
+
+this is from next.js document, can you tell me clearly what is it saying, feel free to compare to real life objects to make things more clear,
+
+`
+`

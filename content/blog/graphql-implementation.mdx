@@ -1,0 +1,217 @@
+---
+title: 'graphQl implementation'
+date: '2022-07-31'
+tags: ['ReactJs', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'This article will show you how to implement graphql API server in node.js and react.js.'
+---
+
+## Overview
+
+Creating a simple Node.js (with GraphQL and Apollo Server) and React.js (with Apollo Client) application to demonstrate GraphQL subscriptions is a great way to understand the whole process. However, due to the complexity and length of the code, I'll provide a basic outline and essential snippets rather than a full application.
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+## Node.js Backend with GraphQL
+
+### Setup Apollo Server and GraphQL:
+
+First, install necessary packages:
+
+```bash
+
+npm install apollo-server graphql graphql-subscriptions
+
+```
+
+### Create Apollo Server with Subscription Support:
+
+`index.js`
+
+```go
+
+const { ApolloServer, PubSub } = require('apollo-server');
+const gql = require('graphql-tag');
+
+const pubsub = new PubSub();
+const MESSAGE_ADDED = 'MESSAGE_ADDED';
+
+// GraphQL schema
+const typeDefs = gql`
+  type Message {
+    id: ID!
+    content: String!
+  }
+
+  type Query {
+    messages: [Message!]
+  }
+
+  type Mutation {
+    postMessage(content: String!): Message
+  }
+
+  type Subscription {
+    messageAdded: Message
+  }
+`;
+
+let messages = [];
+
+// Resolvers define the technique for fetching the types in the schema.
+const resolvers = {
+  Query: {
+    messages: () => messages,
+  },
+  Mutation: {
+    postMessage: (_, { content }) => {
+      const message = { id: messages.length + 1, content };
+      messages.push(message);
+      pubsub.publish(MESSAGE_ADDED, { messageAdded: message });
+      return message;
+    },
+  },
+  Subscription: {
+    messageAdded: {
+      subscribe: () => pubsub.asyncIterator([MESSAGE_ADDED])
+    },
+  },
+};
+
+const server = new ApolloServer({ typeDefs, resolvers });
+
+server.listen().then(({ url }) => {
+  console.log(`Server ready at ${url}`);
+});
+
+
+```
+
+## React.js Frontend with Apollo Client
+
+### Set Up React App and Apollo Client:
+
+First, create a new React app and install Apollo Client:
+
+```bash
+
+npx create-react-app my-app
+cd my-app
+npm install @apollo/client graphql subscriptions-transport-ws
+
+```
+
+### Initialize Apollo Client with WebSocket Link for Subscriptions:
+
+<span style={{ color: 'white' }}>`App.js`</span>
+
+```tsx
+import React from 'react';
+import {
+  ApolloClient,
+  InMemoryCache,
+  ApolloProvider,
+  useSubscription,
+  useMutation,
+  gql,
+} from '@apollo/client';
+import { WebSocketLink } from '@apollo/client/link/ws';
+
+const link = new WebSocketLink({
+  uri: `ws://localhost:4000/graphql`,
+  options: {
+    reconnect: true,
+  },
+});
+
+const client = new ApolloClient({
+  link,
+  uri: 'http://localhost:4000',
+  cache: new InMemoryCache(),
+});
+
+const MESSAGES_SUBSCRIPTION = gql`
+  subscription OnMessageAdded {
+    messageAdded {
+      id
+      content
+    }
+  }
+`;
+
+const POST_MESSAGE_MUTATION = gql`
+  mutation PostMessage($content: String!) {
+    postMessage(content: $content) {
+      id
+    }
+  }
+`;
+
+function Messages() {
+  const { data, loading } = useSubscription(MESSAGES_SUBSCRIPTION);
+
+  if (loading) return <p>Loading messages...</p>;
+  return data.messageAdded ? <p>New message: {data.messageAdded.content}</p> : null;
+}
+
+function SendMessage() {
+  let input;
+  const [postMessage] = useMutation(POST_MESSAGE_MUTATION);
+
+  return (
+    <div>
+      <input
+        type="text"
+        ref={(node) => {
+          input = node;
+        }}
+      />
+      <button
+        onClick={() => {
+          postMessage({ variables: { content: input.value } });
+          input.value = '';
+        }}
+      >
+        Send Message
+      </button>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <ApolloProvider client={client}>
+      <div>
+        <h2>My Chat App 🚀</h2>
+        <Messages />
+        <SendMessage />
+      </div>
+    </ApolloProvider>
+  );
+}
+
+export default App;
+```
+
+## How to Run the Application
+
+### Run the Node.js Backend:
+
+```bash
+
+node index.js
+
+```
+
+### Run the React.js Frontend:
+
+In your React app directory, start the React app:
+
+```bash
+
+npm start
+
+```
+
+This setup will provide a basic chat application where messages are sent from the React client using mutations and received in real-time using subscriptions. Remember, this is a simple demonstration, and in a production environment, you would need to handle things like user authentication, error handling, and more sophisticated state management.

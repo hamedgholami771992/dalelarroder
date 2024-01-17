@@ -1,0 +1,149 @@
+---
+title: 'grpc in nest'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'This article will show you how to implement grpc API server in nest'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+Creating a simple nest.js (with Grpc)
+
+```bash
+project-root/
+│
+├── src/
+│   ├── hero/
+│   │   ├── hero.controller.ts  # Controller for handling incoming requests
+│   │   ├── hero.module.ts    # Hero module file
+│   │   ├── hero.service.ts   # Service that contains business logic
+│   │   └── hero.providers.ts # Optional file for custom providers
+│   │   │
+│   │   ├── dto/              # Data transfer objects directory
+│   │   │   └── hero-by-id.dto.ts
+│   │   ├── interfaces/       # Interface definitions directory
+│   │   │   └── hero.interface.ts
+│   │
+│   ├── app.module.ts         # Root module of the application
+│   └── main.ts               # Entry file of the application
+│
+├── proto/                    # Protocol buffers directory
+│   └── hero.proto            # Proto file for the hero service
+│
+├── test/                     # Test directory
+│   ├── hero.e2e-spec.ts      # End-to-end tests for hero service
+│   └── ...
+│
+├── nest-cli.json             # Nest CLI configuration file
+├── package.json              # Node.js dependencies and scripts
+├── tsconfig.json             # TypeScript compiler configuration
+└── tsconfig.build.json       # TypeScript build configuration
+```
+
+This structure includes a hero directory containing all the files related to the "Hero" entity's gRPC implementation. The proto directory contains the .proto file which describes the gRPC service and messages. The src directory is the main container for all the application code, including modules, controllers, and services. The dto and interfaces subdirectories within the hero directory are optional and can be used to organize data transfer objects and TypeScript interfaces, respectively.
+
+## hero
+
+```js
+
+// src/hero/hero.controller.ts
+import { Controller } from '@nestjs/common';
+import { GrpcMethod } from '@nestjs/microservices';
+import { HeroById } from './dto/hero-by-id.dto';
+import { Hero } from './interfaces/hero.interface';
+import { HeroService } from './hero.service';
+
+@Controller()
+export class HeroController {
+  constructor(private readonly heroService: HeroService) {}
+
+  @GrpcMethod('HeroService', 'FindOne')
+  findOne(heroById: HeroById): Hero {
+    return this.heroService.findOne(heroById);
+  }
+}
+
+
+```
+
+```js
+// src/hero/hero.module.ts
+import { Module } from '@nestjs/common';
+import { HeroService } from './hero.service';
+import { HeroController } from './hero.controller';
+import { heroProviders } from './hero.providers';
+
+@Module({
+  controllers: [HeroController],
+  providers: [HeroService, ...heroProviders],
+})
+export class HeroModule {}
+```
+
+```js
+
+// src/hero/hero.service.ts
+import { Injectable } from '@nestjs/common';
+import { Hero } from './interfaces/hero.interface';
+
+@Injectable()
+export class HeroService {
+  private readonly heroes: Hero[] = [
+    { id: 1, name: 'Batman' },
+    { id: 2, name: 'Superman' }
+    // ... other heroes
+  ];
+
+  findOne(data: { id: number }): Hero {
+    return this.heroes.find(hero => hero.id === data.id);
+  }
+}
+
+
+```
+
+```js
+// src/hero/hero.providers.ts (Optional)
+import { Hero } from './interfaces/hero.interface';
+
+export const heroProviders = [
+  {
+    provide: 'HERO_REPOSITORY',
+    useValue: [
+      { id: 1, name: 'Batman' },
+      { id: 2, name: 'Superman' },
+      // ... other heroes
+    ],
+  },
+];
+```
+
+### dto
+
+```js
+
+// src/hero/dto/hero-by-id.dto.ts
+export class HeroById {
+  id: number;
+}
+
+```
+
+### interfaces
+
+```js
+
+// src/hero/interfaces/hero.interface.ts
+export interface Hero {
+  id: number;
+  name: string;
+  // other properties can be added here
+}
+
+```
+
+## app.module.ts

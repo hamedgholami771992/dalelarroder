@@ -1,0 +1,1005 @@
+---
+title: 'comprehensive grpc in nest.js'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'This article will show you how to implement grpc API server in nest'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+## a comprehensive sample for a .proto file
+
+```proto
+
+syntax = "proto3";
+
+package example;
+
+// Importing necessary options for HTTP mapping (e.g., for use with grpc-gateway).
+import "google/api/annotations.proto";
+
+// The greeting service definition.
+service GreetingService {
+  // Unary RPC: Client sends a single request and receives a single response.
+  rpc SayHello (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      get: "/v1/example/echo/{name}"
+    };
+  };
+
+  // Server Streaming RPC: Client sends a request and receives a stream of responses.
+  rpc LotsOfReplies (HelloRequest) returns (stream HelloReply) {
+    option (google.api.http) = {
+      get: "/v1/example/multi/{name}"
+    };
+  };
+
+  // Client Streaming RPC: Client sends a stream of messages and receives a single response.
+  rpc LotsOfGreetings (stream HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      post: "/v1/example/greet"
+      body: "*"
+    };
+  };
+
+  // Bidirectional Streaming RPC: Both client and server send a stream of messages independently.
+  rpc BidiHello (stream HelloRequest) returns (stream HelloReply) {
+    option (google.api.http) = {
+      // This is just a placeholder as gRPC bidirectional streaming does not
+      // have a direct HTTP/1.1 mapping.
+      additional_bindings {
+        post: "/v1/example/conversation"
+        body: "*"
+      }
+    };
+  };
+}
+
+// The request message containing the user's name.
+message HelloRequest {
+  string name = 1;
+}
+
+// The response message containing the greeting.
+message HelloReply {
+  string message = 1;
+}
+
+// An example of a complex message type with various field types.
+message ComplexMessage {
+  string string_field = 1;
+  bool bool_field = 2;
+  int32 int_field = 3;
+  float float_field = 4;
+  NestedMessage nested_field = 5;
+
+  // An example of an enum within a message.
+  enum SampleEnum {
+    UNKNOWN = 0;
+    STARTED = 1;
+    RUNNING = 2;
+  }
+
+  SampleEnum status = 6;
+
+  // An example of repeated fields (similar to arrays).
+  repeated string string_list = 7;
+
+  // An example of a map field (similar to a dictionary or hash map).
+  map<string, NestedMessage> map_field = 8;
+
+  // An example of a oneof field, where only one of the fields can be set.
+  oneof test_oneof {
+    string name = 9;
+    int32 id = 10;
+  }
+}
+
+// An example of a nested message.
+message NestedMessage {
+  string some_value = 1;
+}
+
+
+// ** protocol buffers use message elements to define both parameter types and return types
+```
+
+The option (google.api.http) annotation in the Protobuf file is part of the gRPC HTTP API (often used with grpc-gateway) that allows you to define HTTP endpoints for your gRPC services. This makes it possible to expose your gRPC-defined methods as RESTful JSON APIs. This is particularly useful when you want to allow clients that cannot support gRPC, such as web browsers, to interact with your gRPC services.
+
+The snippet you've highlighted is specifying how the gRPC service can be mapped to an HTTP endpoint. Here's what each part means:
+
+post: "/v1/example/conversation": This defines that the gRPC method BidiHello can be invoked via an HTTP POST request to the path /v1/example/conversation.
+body: "\*": This indicates that the entire request body will be serialized as the gRPC request message.
+
+Bidirectional streaming RPCs, where the client and server can both send a stream of messages independently, do not have a direct mapping to HTTP/1.1. HTTP/1.1 does not natively support this kind of bidirectional streaming. As a result, the additional_bindings block is used as a placeholder to indicate how this might be represented in an HTTP API, but with the understanding that it doesn't directly translate to real-world HTTP/1.1 behavior.
+
+To actually achieve bidirectional streaming in a RESTful context, you would likely need to use WebSockets or similar technology that supports full-duplex communication. The grpc-gateway, which translates between gRPC and RESTful HTTP API, would not be able to handle this type of gRPC call directly. That's why it's noted as a placeholder—it's a hypothetical mapping that doesn't translate to actual functionality due to the limitations of HTTP/1.1.
+
+## a comprehensive example of a client-service and a grpc microservice communication
+
+### folder structure
+
+```bash
+nest-grpc-project/
+├── src/
+│   ├── microservice/
+│   │   ├── greeting/
+│   │   │   ├── greeting.controller.ts (handles incoming gRPC requests)
+│   │   │   ├── greeting.service.ts (business logic for gRPC service)
+│   │   │   └── interfaces/
+│   │   │       └── greeting.interface.ts (TypeScript interfaces)
+│   │   ├── greeting.module.ts (module declaration for the gRPC service)
+│   │   └── proto/
+│   │       └── greeting.proto (gRPC service definitions)
+│   ├── client-service/
+│   │   ├── greeting-client/
+│   │   │   ├── greeting-client.controller.ts (communicate with gRPC server)
+│   │   │   └── greeting-client.service.ts (encapsulates gRPC client logic)
+│   │   └── greeting-client.module.ts (module declaration for the client)
+│   ├── app.module.ts (root module that imports other modules)
+│   └── main.ts (main application file to bootstrap the application)
+├── proto/ (shared .proto files if needed across services)
+├── node_modules/ (npm dependencies)
+├── test/ (test suites)
+├── nest-cli.json (Nest CLI configuration)
+├── tsconfig.json (TypeScript compiler options)
+├── tsconfig.build.json (TypeScript compiler options for build)
+├── package.json (npm package definition and scripts)
+└── package-lock.json (locked versions of npm dependencies)
+
+```
+
+Breakdown of Key Components:
+
+<ul>
+  <li style={{marginLeft: '0px'}}>src/: The source folder containing all the code for your application.</li>
+  <li style={{marginLeft: '20px', color: "orange"}}>microservice/: This directory contains the gRPC server implementation.</li>
+  <li style={{marginLeft: '40px'}}>greeting/: A module that handles the gRPC service for greetings.</li>
+  <li style={{marginLeft: '60px'}}>greeting.controller.ts: A controller to handle incoming RPC calls.</li>
+  <li style={{marginLeft: '60px'}}>greeting.service.ts: The service where the business logic is implemented.</li>
+  <li style={{marginLeft: '60px'}}>interfaces/: TypeScript interfaces that may be shared between the service and the client.</li>
+  <li style={{marginLeft: '40px'}}>greeting.module.ts: The module file that bundles up the gRPC controllers and providers.</li>
+  <li style={{marginLeft: '40px'}}>proto/: Contains the .proto files that define the gRPC services.</li>
+  <li style={{marginLeft: '20px', color: "orange"}}>greeting-client/: A module that handles the client logic for communicating with the gRPC service.</li>
+  <li style={{marginLeft: '60px'}}>greeting-client.controller.ts: A controller to expose REST endpoints that internally call the gRPC service.</li>
+  <li style={{marginLeft: '60px'}}>greeting-client.service.ts: The service encapsulates the gRPC client stubs.</li>
+  <li style={{marginLeft: '40px'}}>greeting-client.module.ts: The module file for the client.</li>
+  <li style={{marginLeft: '20px', color:"white"}}>app.module.ts: The root application module that imports other modules.</li>
+  <li style={{marginLeft: '20px', color: "white"}}>main.ts: The main file that bootstraps the NestJS application.</li>
+  <li style={{marginLeft: '0px'}}>proto/: (Optional) A shared directory for .proto files if they are needed across different parts of the application.</li>
+  <li style={{marginLeft: '0px'}}>test/: Contains the tests for the application.</li>
+  <li style={{marginLeft: '0px'}}>nest-cli.json: Configuration file for the Nest CLI.</li>
+  <li style={{marginLeft: '0px'}}>tsconfig.json and tsconfig.build.json: Configuration files for the TypeScript compiler.</li>
+  <li style={{marginLeft: '0px'}}>package.json and package-lock.json: Define npm package dependencies and scripts.</li>
+
+</ul>
+<div>
+
+</div>
+
+## Implementation Notes:
+
+<ul>
+  <li>
+    The actual gRPC communication logic would be implemented using Nest's built-in
+    @nestjs/microservices module.
+  </li>
+  <li>
+    Each service within the microservice would have corresponding controllers and services that
+    implement the RPC methods defined in the .proto files.
+  </li>
+  <li>
+    The greeting-client.service.ts would use the gRPC client to contact the server defined in the
+    microservice module.
+  </li>
+  <li>
+    The greeting-client.controller.ts would expose RESTful endpoints if needed, or it could be a
+    separate module that communicates with the microservice module internally within the NestJS
+    application.
+  </li>
+  <li>
+    Shared .proto files, if needed, can be placed in a common proto/ directory at the root level,
+    and symbolic links could be created in both microservice/proto/ and client-service/proto/
+    directories pointing to the shared files to avoid duplication.
+  </li>
+</ul>
+
+## microservice
+
+### microservice-grpc-controller
+
+```ts
+import { Controller } from '@nestjs/common';
+import { GrpcMethod, GrpcStreamMethod } from '@nestjs/microservices';
+import { Observable, Subject } from 'rxjs';
+import { HelloRequest, HelloReply } from './interfaces/greeting.interface';
+
+@Controller()
+export class GreetingController {
+  @GrpcMethod('GreetingService', 'SayHello')
+  sayHello(request: HelloRequest): HelloReply {
+    return { message: `Hello ${request.name}` };
+  }
+
+  @GrpcMethod('GreetingService', 'LotsOfReplies')
+  lotsOfReplies(request: HelloRequest): Observable<HelloReply> {
+    const repliesSubject = new Subject<HelloReply>();
+    for (let i = 1; i <= 5; i++) {
+      repliesSubject.next({ message: `Reply ${i} to ${request.name}` });
+    }
+    repliesSubject.complete();
+    return repliesSubject.asObservable();
+  }
+
+  @GrpcStreamMethod('GreetingService', 'LotsOfGreetings')
+  lotsOfGreetings(data$: Observable<HelloRequest>): Promise<HelloReply> {
+    return new Promise((resolve, reject) => {
+      let names = '';
+      data$.subscribe({
+        next: (request) => {
+          names += request.name + ' ';
+        },
+        complete: () => resolve({ message: `Hello to everyone: ${names}` }),
+        error: (err) => reject(err),
+      });
+    });
+  }
+
+  @GrpcStreamMethod('GreetingService', 'BidiHello')
+  bidiHello(data$: Observable<HelloRequest>): Observable<HelloReply> {
+    const bidiHelloSubject = new Subject<HelloReply>();
+    data$.subscribe({
+      next: (request) => {
+        bidiHelloSubject.next({ message: `Hello ${request.name}` });
+      },
+      error: (err) => bidiHelloSubject.error(err),
+      complete: () => bidiHelloSubject.complete(),
+    });
+
+    return bidiHelloSubject.asObservable();
+  }
+}
+```
+
+### microservice-grpc-service
+
+```ts
+import { Injectable } from '@nestjs/common';
+import { Subject } from 'rxjs';
+import { HelloRequest, HelloReply } from './interfaces/greeting.interface';
+
+@Injectable()
+export class GreetingService {
+  sayHello(request: HelloRequest): HelloReply {
+    return { message: `Hello ${request.name}` };
+  }
+
+  lotsOfReplies(request: HelloRequest): Subject<HelloReply> {
+    const repliesSubject = new Subject<HelloReply>();
+    for (let i = 1; i <= 5; i++) {
+      repliesSubject.next({ message: `Reply ${i} to ${request.name}` });
+    }
+    repliesSubject.complete();
+    return repliesSubject;
+  }
+
+  lotsOfGreetings(requests: Subject<HelloRequest>): Promise<HelloReply> {
+    return new Promise((resolve, reject) => {
+      let names = '';
+      requests.subscribe({
+        next: (request) => {
+          names += request.name + ' ';
+        },
+        complete: () => resolve({ message: `Hello to everyone: ${names}` }),
+        error: (err) => reject(err),
+      });
+    });
+  }
+
+  bidiHello(requests: Subject<HelloRequest>): Subject<HelloReply> {
+    const bidiHelloSubject = new Subject<HelloReply>();
+    requests.subscribe({
+      next: (request) => {
+        bidiHelloSubject.next({ message: `Hello ${request.name}` });
+      },
+      error: (err) => bidiHelloSubject.error(err),
+      complete: () => bidiHelloSubject.complete(),
+    });
+
+    return bidiHelloSubject;
+  }
+}
+```
+
+### microservice-grpc-interface
+
+```ts
+// greeting.interface.ts
+
+import { Observable } from 'rxjs';
+
+// Interface for the HelloRequest message
+export interface HelloRequest {
+  name: string;
+}
+
+// Interface for the HelloReply message
+export interface HelloReply {
+  message: string;
+}
+
+// Interface for the ComplexMessage message
+export interface ComplexMessage {
+  stringField: string;
+  boolField: boolean;
+  intField: number;
+  floatField: number;
+  nestedField: NestedMessage;
+  status: ComplexMessageStatus;
+  stringList: string[];
+  mapField: { [key: string]: NestedMessage };
+  testOneof: { name?: string; id?: number };
+}
+
+// Enum for the SampleEnum within ComplexMessage
+export enum ComplexMessageStatus {
+  UNKNOWN = 0,
+  STARTED = 1,
+  RUNNING = 2,
+}
+
+// Interface for the NestedMessage message
+export interface NestedMessage {
+  someValue: string;
+}
+
+// Interface for the GreetingService
+export interface IGreetingService {
+  sayHello(request: HelloRequest): Promise<HelloReply> | Observable<HelloReply>;
+  lotsOfReplies(request: HelloRequest): Observable<HelloReply>;
+  lotsOfGreetings(requestStream: Observable<HelloRequest>): Promise<HelloReply>;
+  bidiHello(requestStream: Observable<HelloRequest>): Observable<HelloReply>;
+}
+```
+
+### microservice-grpc-module
+
+```ts
+// greeting.module.ts
+
+import { Module } from '@nestjs/common';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { join } from 'path';
+import { GreetingController } from './greeting.controller';
+import { GreetingService } from './greeting.service';
+
+@Module({
+  imports: [
+    ClientsModule.register([
+      {
+        name: 'GREETING_PACKAGE',
+        transport: Transport.GRPC,
+        options: {
+          package: 'example',
+          protoPath: join(__dirname, 'proto/greeting.proto'),
+        },
+      },
+    ]),
+  ],
+  controllers: [GreetingController],
+  providers: [GreetingService],
+})
+export class GreetingModule {}
+```
+
+### microservice-grpc-rest-controller
+
+```ts
+// greeting-rest.controller.ts
+
+import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { GreetingService } from './greeting.service';
+import { HelloRequest } from './interfaces/greeting.interface';
+
+@Controller('greeting')
+export class GreetingRestController {
+  constructor(private readonly greetingService: GreetingService) {}
+
+  @Get('echo/:name')
+  async sayHello(@Param('name') name: string) {
+    const request: HelloRequest = { name };
+    return this.greetingService.sayHello(request);
+  }
+
+  @Get('multi/:name')
+  async lotsOfReplies(@Param('name') name: string) {
+    const request: HelloRequest = { name };
+    return this.greetingService.lotsOfReplies(request);
+  }
+
+  @Post('greet')
+  async lotsOfGreetings(@Body() body: HelloRequest[]) {
+    return this.greetingService.lotsOfGreetings(body);
+  }
+
+  @Post('conversation')
+  async bidiHello(@Body() body: HelloRequest[]) {
+    return this.greetingService.bidiHello(body);
+  }
+}
+```
+
+## Client Service
+
+### clientservice-service
+
+```ts
+// greeting-client.service.ts
+
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import { ClientGrpc, Client } from '@nestjs/microservices';
+import { Observable } from 'rxjs';
+import { HelloRequest, HelloReply } from './interfaces/greeting.interface';
+import { IGreetingService } from './interfaces/greeting.interface';
+
+@Injectable()
+export class GreetingClientService implements OnModuleInit {
+  private greetingService: IGreetingService;
+
+  @Client({
+    service: 'GREETING_SERVICE',
+    transport: Transport.GRPC,
+    options: {
+      package: 'example',
+      protoPath: 'path/to/your/proto/greeting.proto',
+    },
+  })
+  private client: ClientGrpc;
+
+  onModuleInit() {
+    this.greetingService = this.client.getService<IGreetingService>('GreetingService');
+  }
+
+  sayHello(name: string): Observable<HelloReply> {
+    const request: HelloRequest = { name };
+    return this.greetingService.sayHello(request);
+  }
+
+  lotsOfReplies(name: string): Observable<HelloReply> {
+    const request: HelloRequest = { name };
+    return this.greetingService.lotsOfReplies(request);
+  }
+
+  // Assuming the client sends an array of names for the LotsOfGreetings method
+  lotsOfGreetings(names: string[]): Promise<HelloReply> {
+    const requests: Observable<HelloRequest> = from(names).pipe(map((name) => ({ name })));
+    return this.greetingService.lotsOfGreetings(requests).toPromise();
+  }
+
+  // Assuming the client sends and receives a stream of names for the BidiHello method
+  bidiHello(names: string[]): Observable<HelloReply> {
+    const requests: Observable<HelloRequest> = from(names).pipe(map((name) => ({ name })));
+    return this.greetingService.bidiHello(requests);
+  }
+}
+```
+
+### clientservice-controller
+
+```ts
+// greeting-client.controller.ts
+
+import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { GreetingClientService } from './greeting-client.service';
+
+@Controller('greeting-client')
+export class GreetingClientController {
+  constructor(private readonly greetingClientService: GreetingClientService) {}
+
+  @Get('echo/:name')
+  async sayHello(@Param('name') name: string) {
+    return this.greetingClientService.sayHello(name).toPromise();
+  }
+
+  @Get('multi/:name')
+  async lotsOfReplies(@Param('name') name: string) {
+    return this.greetingClientService.lotsOfReplies(name).toPromise();
+  }
+
+  @Post('greet')
+  async lotsOfGreetings(@Body() names: string[]) {
+    return this.greetingClientService.lotsOfGreetings(names);
+  }
+
+  @Post('conversation')
+  async bidiHello(@Body() names: string[]) {
+    return this.greetingClientService.bidiHello(names).toPromise();
+  }
+}
+```
+
+### clientservice-module
+
+```ts
+// greeting-client.module.ts
+
+import { Module } from '@nestjs/common';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { GreetingClientService } from './greeting-client.service';
+import { GreetingClientController } from './greeting-client.controller';
+import { join } from 'path';
+
+@Module({
+  imports: [
+    ClientsModule.register([
+      {
+        name: 'GREETING_SERVICE',
+        transport: Transport.GRPC,
+        options: {
+          package: 'example',
+          protoPath: join(__dirname, '../proto/greeting.proto'),
+          url: 'localhost:5000',
+        },
+      },
+    ]),
+  ],
+  controllers: [GreetingClientController],
+  providers: [GreetingClientService],
+})
+export class GreetingClientModule {}
+```
+
+## app-module
+
+```ts
+// app.module.ts
+
+import { Module } from '@nestjs/common';
+import { GreetingModule } from './microservice/greeting/greeting.module';
+import { GreetingClientModule } from './client-service/greeting-client/greeting-client.module';
+
+@Module({
+  imports: [GreetingModule, GreetingClientModule],
+  controllers: [],
+  providers: [],
+})
+export class AppModule {}
+```
+
+## main.ts
+
+```ts
+// main.ts
+
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { Transport, MicroserviceOptions } from '@nestjs/microservices';
+import { join } from 'path';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  // Setting up the gRPC server
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.GRPC,
+    options: {
+      package: 'example',
+      protoPath: join(__dirname, 'proto/greeting.proto'),
+      url: 'localhost:5000',
+    },
+  });
+
+  await app.startAllMicroservicesAsync();
+  await app.listen(3000);
+  console.log(`Application is running on: ${await app.getUrl()}`);
+}
+
+bootstrap();
+```
+
+## test
+
+### microservice-grpc-test
+
+```ts
+// greeting.service.spec.ts
+
+import { Test, TestingModule } from '@nestjs/testing';
+import { GreetingService } from '../src/microservice/greeting/greeting.service';
+import { HelloRequest } from '../src/microservice/greeting/interfaces/greeting.interface';
+
+describe('GreetingService', () => {
+  let service: GreetingService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [GreetingService],
+    }).compile();
+
+    service = module.get<GreetingService>(GreetingService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('sayHello', () => {
+    it('should return a greeting message', async () => {
+      const result = await service.sayHello({ name: 'John' });
+      expect(result).toEqual({ message: 'Hello, John!' });
+    });
+  });
+
+  describe('lotsOfReplies', () => {
+    it('should return a stream of replies', (done) => {
+      const mockStream = service.lotsOfReplies({ name: 'John' });
+      const messages = [];
+      mockStream.subscribe({
+        next: (reply) => messages.push(reply),
+        complete: () => {
+          expect(messages.length).toBeGreaterThan(0);
+          done();
+        },
+      });
+    });
+  });
+
+  describe('lotsOfGreetings', () => {
+    it('should return a reply for multiple greetings', async () => {
+      const mockStream = {
+        [Symbol.asyncIterator]: async function* () {
+          yield { name: 'John' };
+          yield { name: 'Jane' };
+        },
+      };
+      const result = await service.lotsOfGreetings(mockStream);
+      expect(result).toBeDefined();
+      expect(result.message).toContain('John');
+      expect(result.message).toContain('Jane');
+    });
+  });
+
+  describe('bidiHello', () => {
+    it('should return a stream for bidirectional communication', (done) => {
+      const mockStream = {
+        [Symbol.asyncIterator]: async function* () {
+          yield { name: 'John' };
+          yield { name: 'Jane' };
+        },
+      };
+      const bidiStream = service.bidiHello(mockStream);
+      const messages = [];
+      bidiStream.subscribe({
+        next: (reply) => messages.push(reply),
+        complete: () => {
+          expect(messages.length).toBeGreaterThan(0);
+          expect(messages.some((msg) => msg.message.includes('John'))).toBeTruthy();
+          expect(messages.some((msg) => msg.message.includes('Jane'))).toBeTruthy();
+          done();
+        },
+      });
+    });
+  });
+});
+```
+
+### microservice-rest-test
+
+```ts
+// greeting-rest.controller.spec.ts
+
+import { Test, TestingModule } from '@nestjs/testing';
+import { GreetingRestController } from '../src/microservice/greeting/greeting-rest.controller';
+import { GreetingService } from '../src/microservice/greeting/greeting.service';
+
+describe('GreetingRestController', () => {
+  let controller: GreetingRestController;
+  let service: GreetingService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [GreetingRestController],
+      providers: [GreetingService],
+    })
+      .overrideProvider(GreetingService)
+      .useValue({
+        sayHello: jest.fn().mockImplementation((req) => ({ message: `Hello, ${req.name}!` })),
+        lotsOfReplies: jest.fn(),
+        lotsOfGreetings: jest.fn(),
+        bidiHello: jest.fn(),
+      })
+      .compile();
+
+    controller = module.get<GreetingRestController>(GreetingRestController);
+    service = module.get<GreetingService>(GreetingService);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+
+  describe('sayHello', () => {
+    it('should return a greeting message', async () => {
+      const result = await controller.sayHello('John');
+      expect(result).toEqual({ message: 'Hello, John!' });
+      expect(service.sayHello).toHaveBeenCalledWith({ name: 'John' });
+    });
+  });
+
+  describe('lotsOfReplies', () => {
+    it('should call lotsOfReplies service method', async () => {
+      await controller.lotsOfReplies('John');
+      expect(service.lotsOfReplies).toHaveBeenCalledWith({ name: 'John' });
+    });
+  });
+
+  describe('lotsOfGreetings', () => {
+    it('should call lotsOfGreetings service method', async () => {
+      const mockStream = []; // Mock streaming data as needed
+      await controller.lotsOfGreetings(mockStream);
+      expect(service.lotsOfGreetings).toHaveBeenCalledWith(mockStream);
+    });
+  });
+
+  describe('bidiHello', () => {
+    it('should call bidiHello service method', async () => {
+      const mockStream = []; // Mock streaming data as needed
+      await controller.bidiHello(mockStream);
+      expect(service.bidiHello).toHaveBeenCalledWith(mockStream);
+    });
+  });
+});
+```
+
+### clientservice-service-test
+
+```ts
+// greeting-client.service.spec.ts
+
+import { Test, TestingModule } from '@nestjs/testing';
+import { GreetingClientService } from '../src/client-service/greeting-client/greeting-client.service';
+
+describe('GreetingClientService', () => {
+  let service: GreetingClientService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [GreetingClientService],
+    }).compile();
+
+    service = module.get<GreetingClientService>(GreetingClientService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  // Assuming mock implementations for the gRPC client methods
+  const mockGrpcService = {
+    sayHello: jest.fn().mockResolvedValue({ message: 'Hello, John!' }),
+    lotsOfReplies: jest.fn().mockResolvedValue([{ message: 'Reply 1' }, { message: 'Reply 2' }]),
+    lotsOfGreetings: jest.fn().mockResolvedValue({ message: 'Greetings received' }),
+    bidiHello: jest
+      .fn()
+      .mockResolvedValue([{ message: 'Hello, John!' }, { message: 'Hello, Jane!' }]),
+  };
+
+  service['greetingService'] = mockGrpcService;
+
+  describe('sayHello', () => {
+    it('should return a greeting message', async () => {
+      const result = await service.sayHello('John').toPromise();
+      expect(mockGrpcService.sayHello).toHaveBeenCalledWith({ name: 'John' });
+      expect(result).toEqual({ message: 'Hello, John!' });
+    });
+  });
+
+  describe('lotsOfReplies', () => {
+    it('should return a stream of replies', async () => {
+      const result = await service.lotsOfReplies('John').toPromise();
+      expect(mockGrpcService.lotsOfReplies).toHaveBeenCalledWith({ name: 'John' });
+      expect(result).toEqual([{ message: 'Reply 1' }, { message: 'Reply 2' }]);
+    });
+  });
+
+  describe('lotsOfGreetings', () => {
+    it('should return a response for multiple greetings', async () => {
+      const result = await service.lotsOfGreetings(['John', 'Jane']).toPromise();
+      expect(mockGrpcService.lotsOfGreetings).toHaveBeenCalled();
+      expect(result).toEqual({ message: 'Greetings received' });
+    });
+  });
+
+  describe('bidiHello', () => {
+    it('should return a stream for bidirectional communication', async () => {
+      const result = await service.bidiHello(['John', 'Jane']).toPromise();
+      expect(mockGrpcService.bidiHello).toHaveBeenCalled();
+      expect(result).toEqual([{ message: 'Hello, John!' }, { message: 'Hello, Jane!' }]);
+    });
+  });
+});
+```
+
+### clientservice-controller-test
+
+```ts
+// greeting-client.controller.spec.ts
+
+import { Test, TestingModule } from '@nestjs/testing';
+import { GreetingClientController } from '../src/client-service/greeting-client/greeting-client.controller';
+import { GreetingClientService } from '../src/client-service/greeting-client/greeting-client.service';
+
+describe('GreetingClientController', () => {
+  let controller: GreetingClientController;
+  let service: GreetingClientService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [GreetingClientController],
+      providers: [GreetingClientService],
+    })
+      .overrideProvider(GreetingClientService)
+      .useValue({
+        sayHello: jest.fn().mockResolvedValue({ message: 'Hello, John!' }),
+        lotsOfReplies: jest
+          .fn()
+          .mockResolvedValue([{ message: 'Reply 1' }, { message: 'Reply 2' }]),
+        lotsOfGreetings: jest.fn().mockResolvedValue({ message: 'Greetings received' }),
+        bidiHello: jest
+          .fn()
+          .mockResolvedValue([{ message: 'Hello, John!' }, { message: 'Hello, Jane!' }]),
+      })
+      .compile();
+    controller = module.get<GreetingClientController>(GreetingClientController);
+    service = module.get<GreetingClientService>(GreetingClientService);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+
+  describe('sayHello', () => {
+    it('should return a greeting message', async () => {
+      const result = await controller.sayHello('John');
+      expect(result).toEqual({ message: 'Hello, John!' });
+      expect(service.sayHello).toHaveBeenCalledWith('John');
+    });
+  });
+
+  describe('lotsOfReplies', () => {
+    it('should return a stream of replies', async () => {
+      const result = await controller.lotsOfReplies('John');
+      expect(result).toEqual([{ message: 'Reply 1' }, { message: 'Reply 2' }]);
+      expect(service.lotsOfReplies).toHaveBeenCalledWith('John');
+    });
+  });
+
+  describe('lotsOfGreetings', () => {
+    it('should return a response for multiple greetings', async () => {
+      const result = await controller.lotsOfGreetings(['John', 'Jane']);
+      expect(result).toEqual({ message: 'Greetings received' });
+      expect(service.lotsOfGreetings).toHaveBeenCalledWith(['John', 'Jane']);
+    });
+  });
+
+  describe('bidiHello', () => {
+    it('should return a stream for bidirectional communication', async () => {
+      const result = await controller.bidiHello(['John', 'Jane']);
+      expect(result).toEqual([{ message: 'Hello, John!' }, { message: 'Hello, Jane!' }]);
+      expect(service.bidiHello).toHaveBeenCalledWith(['John', 'Jane']);
+    });
+  });
+});
+```
+
+## nest-cli.json
+
+```ts
+{
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "entryFile": "main",
+  "compilerOptions": {
+    "assets": ["**/*.proto"],
+    "grpc": true
+  }
+}
+
+
+```
+
+## tsconfig.json
+
+```ts
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "CommonJS",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "sourceMap": true,
+    "moduleResolution": "node",
+    "typeRoots": ["node_modules/@types"],
+    "lib": ["ES6"],
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+
+```
+
+## package.json
+
+```ts
+{
+  "name": "nest-grpc-project",
+  "version": "1.0.0",
+  "description": "Nest.js gRPC project with REST API and client",
+  "scripts": {
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "prestart:prod": "npm run build",
+    "start:prod": "node dist/main",
+    "lint": "eslint src/**/*.ts",
+    "test": "jest",
+    "test:cov": "jest --coverage",
+    "build": "tsc -p tsconfig.build.json",
+    "format": "prettier --write \"src/**/*.ts\""
+  },
+  "dependencies": {
+    "@nestjs/common": "^8.0.0",
+    "@nestjs/core": "^8.0.0",
+    "@nestjs/platform-express": "^8.0.0",
+    "grpc": "^1.24.2",
+    "protobufjs": "^6.11.5",
+    "reflect-metadata": "^0.1.13",
+    "rxjs": "^7.4.0"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^8.0.0",
+    "@nestjs/testing": "^8.0.0",
+    "@types/jest": "^27.0.2",
+    "@types/node": "^16.11.7",
+    "@typescript-eslint/eslint-plugin": "^5.2.0",
+    "@typescript-eslint/parser": "^5.2.0",
+    "eslint": "^8.7.2",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "jest": "^27.2.2",
+    "prettier": "^2.4.1",
+    "ts-jest": "^27.1.3",
+    "ts-node": "^10.4.0",
+    "typescript": "^4.5.5"
+  },
+  "jest": {
+    "moduleFileExtensions": ["js", "json", "ts"],
+    "rootDir": "src",
+    "testRegex": ".spec.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node"
+  },
+  "prettier": {
+    "singleQuote": true,
+    "trailingComma": "all"
+  }
+}
+
+
+```

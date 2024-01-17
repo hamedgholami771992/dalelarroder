@@ -1,0 +1,982 @@
+---
+title: 'graphQl in nest'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'This article will show you how to implement graphql API server in nest'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+Creating a simple nest.js (with GraphQl)
+
+```bash
+src/
+├── common/
+│   ├── enums.ts
+│   ├── scalars.ts
+│   ├── directives.ts
+│   ├── interfaces.ts
+│   ├── shared.models.ts
+│
+├── resolvers/
+│   ├── user.resolver.ts
+│   ├── post.resolver.ts
+│   ├── comment.resolver.ts
+│   ├── subscription.resolver.ts
+│   ├── union.resolver.ts
+│   ├── enum.resolver.ts
+│   ├── interface.resolver.ts
+│   ├── federation.resolver.ts
+│
+├── mutations/
+│   ├── user.mutation.ts
+│   ├── post.mutation.ts
+│   ├── comment.mutation.ts
+│   ├── federation.mutation.ts
+│
+├── subscriptions/
+│   ├── comment.sub.ts
+│   ├── subscription.events.ts
+│
+├── scalars/
+│   ├── custom-scalar.resolver.ts
+│   ├── custom-scalar.scalar.ts
+│
+├── directives/
+│   ├── custom.directive.ts
+│   ├── custom.directive.ts
+│
+├── interfaces/
+│   ├── custom.interface.ts
+│   ├── custom.interface.resolver.ts
+│
+├── unions/
+│   ├── custom.union.ts
+│   ├── custom.union.resolver.ts
+│
+├── enums/
+│   ├── custom.enum.ts
+│   ├── custom.enum.resolver.ts
+│
+├── field-middleware/
+│   ├── custom-field-middleware.middleware.ts
+│
+├── mapped-types/
+│   ├── mapped.types.ts
+│
+├── plugins/
+│   ├── custom.plugin.ts
+│
+├── complexity/
+│   ├── custom-complexity.ts
+│
+├── extensions/
+│   ├── custom.extension.ts
+│
+├── cli-plugin/
+│   ├── custom.cli.plugin.ts
+│
+├── generating-sdl/
+│   ├── custom.sdl.ts
+│
+├── sharing-models/
+│   ├── shared.model.ts
+│   ├── shared.model.resolver.ts
+│
+├── other-features/
+│   ├── feature1/
+│   │   ├── feature1.resolver.ts
+│   ├── feature2/
+│   │   ├── feature2.resolver.ts
+│
+├── federation/
+│   ├── federated.resolver.ts
+│   ├── federated.service.ts
+│
+├── migration/
+│   ├── migration-guide.md
+│
+├── app.module.ts
+├── main.ts
+
+
+```
+
+## common
+
+```js
+
+// src/common/enums.ts
+import { registerEnumType } from '@nestjs/graphql';
+
+export enum UserRole {
+  USER = 'USER',
+  ADMIN = 'ADMIN',
+}
+
+registerEnumType(UserRole, {
+  name: 'UserRole',
+  description: 'User roles in the application',
+});
+
+// Define other enums as needed
+
+```
+
+```js
+// src/common/scalars.ts
+import { Scalar } from '@nestjs/graphql';
+
+@Scalar('Date', () => Date)
+export class DateScalar {}
+
+// Define other custom scalars as needed
+```
+
+```js
+
+// src/common/directives.ts
+import { Directive, FieldDefinitionNode, GraphQLDirective, GraphQLObjectType } from 'graphql';
+import { SchemaDirectiveVisitor } from 'graphql-tools';
+
+@Directive('@custom')
+export class CustomDirective extends SchemaDirectiveVisitor {
+  visitFieldDefinition(field: FieldDefinitionNode, details: { objectType: GraphQLObjectType }) {
+    const { resolve } = this.config;
+    const originalResolve = field.resolve || details.objectType.getFields()[field.name].resolve;
+
+    field.resolve = async (source, args, context, info) => {
+      // Implement custom logic here before or after the original resolver
+      const result = await originalResolve.call(this, source, args, context, info);
+      // Implement custom logic here after the original resolver
+      return result;
+    };
+  }
+}
+
+// Define other custom directives as needed
+
+
+```
+
+```js
+
+// src/common/interfaces.ts
+import { InterfaceType, Field, ID } from '@nestjs/graphql';
+
+@InterfaceType()
+export abstract class CustomInterface {
+  @Field(() => ID)
+  id: string;
+
+  @Field()
+  name: string;
+}
+
+// Define other custom interfaces as needed
+
+
+```
+
+```js
+
+// src/common/shared.models.ts
+import { ObjectType, Field, ID } from '@nestjs/graphql';
+
+@ObjectType()
+export class SharedModel {
+  @Field(() => ID)
+  id: string;
+
+  @Field()
+  name: string;
+}
+
+// Define other shared models as needed
+
+
+```
+
+## resolvers
+
+```js
+
+// src/resolvers/user.resolver.ts
+import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { UserService } from '../services/user.service';
+import { User } from '../models/user.model';
+
+@Resolver(() => User)
+export class UserResolver {
+  constructor(private readonly userService: UserService) {}
+
+  @Query(() => User)
+  async getUser(@Args('id') id: string): Promise<User> {
+    // Implement logic to retrieve a user by ID using userService
+    return this.userService.findById(id);
+  }
+
+  @Mutation(() => User)
+  async createUser(@Args('input') input: CreateUserInput): Promise<User> {
+    // Implement logic to create a new user using userService
+    return this.userService.createUser(input);
+  }
+
+  // Define other queries and mutations related to users
+}
+
+
+```
+
+```js
+// src/resolvers/post.resolver.ts
+import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { PostService } from '../services/post.service';
+import { Post } from '../models/post.model';
+
+@Resolver(() => Post)
+export class PostResolver {
+  constructor(private readonly postService: PostService) {}
+
+  @Query(() => Post)
+  async getPost(@Args('id') id: string): Promise<Post> {
+    // Implement logic to retrieve a post by ID using postService
+    return this.postService.findById(id);
+  }
+
+  @Mutation(() => Post)
+  async createPost(@Args('input') input: CreatePostInput): Promise<Post> {
+    // Implement logic to create a new post using postService
+    return this.postService.createPost(input);
+  }
+
+  // Define other queries and mutations related to posts
+}
+
+
+```
+
+```js
+// src/resolvers/comment.resolver.ts
+import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { CommentService } from '../services/comment.service';
+import { Comment } from '../models/comment.model';
+
+@Resolver(() => Comment)
+export class CommentResolver {
+  constructor(private readonly commentService: CommentService) {}
+
+  @Query(() => Comment)
+  async getComment(@Args('id') id: string): Promise<Comment> {
+    // Implement logic to retrieve a comment by ID using commentService
+    return this.commentService.findById(id);
+  }
+
+  @Mutation(() => Comment)
+  async createComment(@Args('input') input: CreateCommentInput): Promise<Comment> {
+    // Implement logic to create a new comment using commentService
+    return this.commentService.createComment(input);
+  }
+
+  // Define other queries and mutations related to comments
+}
+
+
+```
+
+```js
+// src/resolvers/subscription.resolver.ts
+import { Resolver, Subscription } from '@nestjs/graphql';
+
+@Resolver()
+export class SubscriptionResolver {
+  @Subscription(() => String, {
+    resolve: (payload) => payload,
+    filter: (payload, variables) => {
+      // Implement logic to filter subscriptions based on variables
+      return true;
+    },
+  })
+  async newNotification() {
+    // Implement logic to publish subscription data
+    return 'New notification!';
+  }
+}
+```
+
+```js
+// src/resolvers/union.resolver.ts
+import { Resolver, ResolveType } from '@nestjs/graphql';
+import { UnionType } from '../models/union.model';
+import { User } from '../models/user.model';
+import { Post } from '../models/post.model';
+
+@Resolver(UnionType)
+export class UnionResolver {
+  @ResolveType(() => User)
+  resolveTypeUser() {
+    return User;
+  }
+
+  @ResolveType(() => Post)
+  resolveTypePost() {
+    return Post;
+  }
+
+  // Define resolveType methods for other types included in the union
+}
+```
+
+```js
+// src/resolvers/enum.resolver.ts
+import { Resolver } from '@nestjs/graphql';
+import { EnumType } from '../models/enum.model';
+
+@Resolver(EnumType)
+export class EnumResolver {
+  // Implement custom resolvers or queries related to EnumType
+}
+```
+
+```js
+// src/resolvers/interface.resolver.ts
+import { Resolver, ResolveField, Parent } from '@nestjs/graphql';
+import { CustomInterface } from '../models/interface.model';
+import { UserService } from '../services/user.service';
+
+@Resolver(CustomInterface)
+export class InterfaceResolver {
+  constructor(private userService: UserService) {}
+
+  @ResolveField()
+  async user(@Parent() customInterface: CustomInterface) {
+    // Implement custom logic to resolve the 'user' field of the interface
+    return this.userService.getUserById(customInterface.userId);
+  }
+}
+
+```
+
+```js
+// src/resolvers/federation.resolver.ts
+```
+
+## mutations
+
+```js
+// src/mutations/user.mutation.ts
+import { Resolver, Mutation, Args } from '@nestjs/graphql';
+import { UserService } from '../services/user.service';
+import { CreateUserInput } from '../dto/create-user.input';
+import { User } from '../models/user.model';
+
+@Resolver()
+export class UserMutationResolver {
+  constructor(private readonly userService: UserService) {}
+
+  @Mutation(() => User)
+  async createUser(@Args('input') input: CreateUserInput): Promise<User> {
+    // Implement logic to create a new user using userService
+    return this.userService.createUser(input);
+  }
+
+  // Define other mutations related to users
+}
+
+
+```
+
+```js
+// src/mutations/post.mutation.ts
+import { Resolver, Mutation, Args } from '@nestjs/graphql';
+import { PostService } from '../services/post.service';
+import { CreatePostInput } from '../dto/create-post.input';
+import { Post } from '../models/post.model';
+
+@Resolver()
+export class PostMutationResolver {
+  constructor(private readonly postService: PostService) {}
+
+  @Mutation(() => Post)
+  async createPost(@Args('input') input: CreatePostInput): Promise<Post> {
+    // Implement logic to create a new post using postService
+    return this.postService.createPost(input);
+  }
+
+  // Define other mutations related to posts
+}
+
+
+```
+
+```js
+// src/mutations/comment.mutation.ts
+import { Resolver, Mutation, Args } from '@nestjs/graphql';
+import { CommentService } from '../services/comment.service';
+import { CreateCommentInput } from '../dto/create-comment.input';
+import { Comment } from '../models/comment.model';
+
+@Resolver()
+export class CommentMutationResolver {
+  constructor(private readonly commentService: CommentService) {}
+
+  @Mutation(() => Comment)
+  async createComment(@Args('input') input: CreateCommentInput): Promise<Comment> {
+    // Implement logic to create a new comment using commentService
+    return this.commentService.createComment(input);
+  }
+
+  // Define other mutations related to comments
+}
+```
+
+```js
+// src/mutations/federation.mutation.ts
+import { Resolver, Mutation, Args } from '@nestjs/graphql';
+import { FederatedService } from '../services/federated.service';
+import { CreateFederatedInput } from '../dto/create-federated.input';
+import { FederatedType } from '../models/federated.model';
+
+@Resolver()
+export class FederationMutationResolver {
+  constructor(private readonly federatedService: FederatedService) {}
+
+  @Mutation(() => FederatedType)
+  async createFederated(
+    @Args('input') input: CreateFederatedInput,
+  ): Promise<FederatedType> {
+    // Implement logic to create a new federated type using federatedService
+    return this.federatedService.createFederated(input);
+  }
+
+  // Define other mutations related to federated types if needed
+}
+
+
+```
+
+## subscriptions
+
+```js
+// src/subscriptions/comment.sub.ts
+import { Resolver, Subscription } from '@nestjs/graphql';
+
+@Resolver()
+export class CommentSubscriptionResolver {
+  @Subscription(() => String, {
+    resolve: (payload) => payload,
+    filter: (payload, variables) => {
+      // Implement logic to filter subscriptions based on variables
+      return true;
+    },
+  })
+  async newComment() {
+    // Implement logic to publish subscription data for new comments
+    return 'New comment!';
+  }
+}
+```
+
+```js
+// src/subscriptions/subscription.events.ts
+import { PubSub } from 'graphql-subscriptions';
+
+export const pubSub = new PubSub();
+```
+
+## scalars
+
+```js
+// src/scalars/custom-scalar.resolver.ts
+import { Resolver, Query } from '@nestjs/graphql';
+
+@Resolver('Date')
+export class CustomScalarResolver {
+  @Query(() => Date)
+  async currentDate(): Promise<Date> {
+    return new Date();
+  }
+
+  // Define other queries or resolvers related to the custom scalar
+}
+
+```
+
+```js
+// src/scalars/custom-scalar.scalar.ts
+import { Scalar } from '@nestjs/graphql';
+
+@Scalar('Date')
+export class CustomScalar {
+  description = 'Custom scalar type for representing dates';
+
+  parseValue(value: string) {
+    return new Date(value);
+  }
+
+  serialize(value: Date) {
+    return value.toISOString();
+  }
+
+  parseLiteral(ast) {
+    if (ast.kind === 'StringValue') {
+      return new Date(ast.value);
+    }
+    return null;
+  }
+}
+
+
+```
+
+## directives
+
+```js
+// src/directives/custom.directive.ts
+import { SchemaDirectiveVisitor } from 'graphql-tools';
+import { defaultFieldResolver } from 'graphql';
+
+export class CustomDirective extends SchemaDirectiveVisitor {
+  visitFieldDefinition(field) {
+    const { resolve = defaultFieldResolver } = field;
+    field.resolve = async function (...args) {
+      const result = await resolve.apply(this, args);
+      // Implement custom directive logic here, for example, modify the result
+      return result;
+    };
+  }
+}
+```
+
+```js
+// src/directives/custom.directive.ts
+import { SchemaDirectiveVisitor } from 'graphql-tools';
+import { defaultFieldResolver } from 'graphql';
+
+export class AnotherCustomDirective extends SchemaDirectiveVisitor {
+  visitFieldDefinition(field) {
+    const { resolve = defaultFieldResolver } = field;
+    field.resolve = async function (...args) {
+      const result = await resolve.apply(this, args);
+      // Implement custom directive logic here, for example, modify the result
+      return result;
+    };
+  }
+}
+```
+
+## interfaces
+
+```js
+
+// src/interfaces/custom.interface.ts
+import { InterfaceType, Field, ID } from '@nestjs/graphql';
+
+@InterfaceType()
+export abstract class CustomInterface {
+  @Field(() => ID)
+  id: string;
+
+  @Field()
+  name: string;
+
+  // Define other fields and methods for the interface
+}
+
+```
+
+```js
+
+// src/interfaces/custom.interface.resolver.ts
+import { Resolver, ResolveField, Parent } from '@nestjs/graphql';
+import { CustomInterface } from './custom.interface';
+import { UserService } from '../services/user.service';
+
+@Resolver(() => CustomInterface)
+export class CustomInterfaceResolver {
+  constructor(private userService: UserService) {}
+
+  @ResolveField()
+  async user(@Parent() customInterface: CustomInterface) {
+    // Implement custom logic to resolve the 'user' field of the interface
+    return this.userService.getUserById(customInterface.userId);
+  }
+
+  // Define other resolver methods for the interface
+}
+
+```
+
+## unions
+
+```js
+
+// src/unions/custom.union.ts
+import { UnionType, ObjectType, Field } from '@nestjs/graphql';
+import { User } from '../models/user.model';
+import { Post } from '../models/post.model';
+
+@ObjectType()
+export class UserType {
+  @Field()
+  username: string;
+
+  // Define other fields specific to the User type
+}
+
+@ObjectType()
+export class PostType {
+  @Field()
+  title: string;
+
+  // Define other fields specific to the Post type
+}
+
+@UnionType([UserType, PostType])
+export class CustomUnion {
+  @Field()
+  __typename: 'UserType' | 'PostType';
+}
+
+```
+
+```js
+// src/unions/custom.union.resolver.ts
+import { Resolver, ResolveType } from '@nestjs/graphql';
+import { CustomUnion } from './custom.union';
+import { UserType, PostType } from './custom.union';
+
+@Resolver(() => CustomUnion)
+export class CustomUnionResolver {
+  @ResolveType(() => UserType)
+  resolveUserType() {
+    return UserType;
+  }
+
+  @ResolveType(() => PostType)
+  resolvePostType() {
+    return PostType;
+  }
+
+  // Define resolveType methods for other types included in the union
+}
+```
+
+## enums
+
+```js
+// src/enums/custom.enum.ts
+import { registerEnumType } from '@nestjs/graphql';
+
+export enum CustomEnum {
+  VALUE1 = 'VALUE1',
+  VALUE2 = 'VALUE2',
+  VALUE3 = 'VALUE3',
+}
+
+registerEnumType(CustomEnum, {
+  name: 'CustomEnum',
+  description: 'Custom enum type for representing choices',
+});
+```
+
+```js
+// src/enums/custom.enum.resolver.ts
+import { Resolver } from '@nestjs/graphql';
+import { CustomEnum } from './custom.enum';
+
+@Resolver(() => CustomEnum)
+export class CustomEnumResolver {
+  // Implement custom resolvers or queries related to CustomEnum
+}
+```
+
+## field-middleware
+
+```js
+// src/field-middleware/custom-field-middleware.middleware.ts
+import { MiddlewareFn } from '@nestjs/graphql';
+
+export const CustomFieldMiddleware: MiddlewareFn = async (resolverData, next) => {
+  // Implement custom field middleware logic here
+  const result = await next();
+  // Implement additional logic after the resolver execution
+  return result;
+};
+```
+
+## mapped-types
+
+```js
+// src/mapped-types/mapped.types.ts
+import { InputType, PartialType } from '@nestjs/graphql';
+import { CreateUserInput } from '../dto/create-user.input';
+
+@InputType()
+export class UpdateUserInput extends PartialType(CreateUserInput) {
+  // Define additional fields or modifications to the mapped type
+}
+```
+
+## plugins
+
+```js
+// src/plugins/custom.plugin.ts
+import { Plugin } from '@nestjs/graphql';
+
+@Plugin()
+export class CustomPlugin {
+  // Implement custom plugin logic here
+}
+```
+
+## complexity
+
+```js
+// src/complexity/custom-complexity.ts
+import { ComplexityEstimator, QueryComplexityEstimator } from '@nestjs/graphql';
+
+export const customComplexity: ComplexityEstimator = (options) => {
+  // Implement custom complexity analysis logic here based on resolver options
+  return 1; // Return the computed complexity value
+};
+
+export const queryComplexity: QueryComplexityEstimator = (options, childComplexity) => {
+  // Implement custom query complexity analysis logic here based on resolver options and child complexity
+  return 1; // Return the computed query complexity value
+};
+
+```
+
+## extensions
+
+```js
+// src/extensions/custom.extension.ts
+import { Plugin } from '@nestjs/graphql';
+
+@Plugin()
+export class CustomExtension {
+  // Implement custom extension logic here
+}
+```
+
+## cli-plugin
+
+```js
+// src/cli-plugin/custom.cli.plugin.ts
+import { Plugin } from '@nestjs/cli';
+
+@Plugin()
+export class CustomCliPlugin {
+  // Implement custom CLI plugin logic here
+}
+```
+
+## generating-sdl
+
+```js
+// src/generating-sdl/custom.sdl.ts
+import { SchemaGenerator } from '@nestjs/graphql';
+
+export class CustomSchemaGenerator extends SchemaGenerator {
+  // Implement custom SDL generation logic here
+}
+```
+
+## sharing-models
+
+```js
+// src/sharing-models/shared.model.ts
+import { ObjectType, Field, ID } from '@nestjs/graphql';
+
+@ObjectType()
+export class SharedModel {
+  @Field(() => ID)
+  id: string;
+
+  @Field()
+  name: string;
+
+  // Define other fields specific to the shared model
+}
+```
+
+```js
+// src/sharing-models/shared.model.resolver.ts
+import { Resolver, Query } from '@nestjs/graphql';
+import { SharedModel } from './shared.model';
+
+@Resolver(() => SharedModel)
+export class SharedModelResolver {
+  @Query(() => SharedModel)
+  async getSharedModel(): Promise<SharedModel> {
+    // Implement logic to retrieve or generate a shared model
+    return {
+      id: '1',
+      name: 'Shared Item',
+    };
+  }
+
+  // Define other queries or resolvers related to the shared model
+}
+```
+
+## other-features
+
+```js
+// src/other-features/feature1/feature1.resolver.ts
+import { Resolver, Query } from '@nestjs/graphql';
+
+@Resolver()
+export class Feature1Resolver {
+  @Query(() => String)
+  async feature1Query(): Promise<string> {
+    // Implement logic specific to Feature 1
+    return 'Result from Feature 1';
+  }
+
+  // Define other queries or resolvers related to Feature 1
+}
+```
+
+````js
+// src/other-features/feature2/feature2.resolver.ts
+import { Resolver, Query } from '@nestjs/graphql';
+
+@Resolver()
+export class Feature2Resolver {
+  @Query(() => String)
+  async feature2Query(): Promise<string> {
+    // Implement logic specific to Feature 2
+    return 'Result from Feature 2';
+  }
+
+  // Define other queries or resolvers related to Feature 2
+}
+
+
+## federation
+
+```js
+// src/federation/federated.resolver.ts
+import { Resolver, Query } from '@nestjs/graphql';
+
+@Resolver()
+export class FederatedResolver {
+  @Query(() => String)
+  async federatedQuery(): Promise<string> {
+    // Implement logic specific to federated types
+    return 'Result from Federated Resolver';
+  }
+
+  // Define other queries or resolvers related to federated types
+}
+````
+
+```js
+// src/federation/federated.service.ts
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class FederatedService {
+  // Implement logic related to federated types
+}
+```
+
+## migration
+
+```mdx
+# migration-guide.md
+
+# Migration Guide
+
+This document provides a guide for migrating from the previous version of the GraphQL API to the current version.
+
+## Table of Contents
+
+1. Introduction
+2. Changes in the Current Version
+   - List of breaking changes or significant updates
+3. Migration Steps
+   - Detailed steps and instructions for migrating
+4. Conclusion
+   - Final notes and recommendations
+
+...
+
+[Insert detailed content for your migration guide here]
+```
+
+## app.module.ts
+
+```js
+//app.module.ts
+import { Module } from '@nestjs/common';
+import { GraphQLModule } from '@nestjs/graphql';
+import { UserModule } from './user/user.module'; // Import your modules as needed
+import { PostModule } from './post/post.module';
+import { CommentModule } from './comment/comment.module';
+import { SubscriptionModule } from './subscription/subscription.module';
+import { ScalarsModule } from './scalars/scalars.module';
+import { DirectivesModule } from './directives/directives.module';
+import { InterfacesModule } from './interfaces/interfaces.module';
+import { UnionsModule } from './unions/unions.module';
+import { EnumsModule } from './enums/enums.module';
+import { FieldMiddlewareModule } from './field-middleware/field-middleware.module';
+import { MappedTypesModule } from './mapped-types/mapped-types.module';
+import { PluginsModule } from './plugins/plugins.module';
+import { ComplexityModule } from './complexity/complexity.module';
+import { ExtensionsModule } from './extensions/extensions.module';
+import { CliPluginModule } from './cli-plugin/cli-plugin.module';
+import { GeneratingSdlModule } from './generating-sdl/generating-sdl.module';
+import { SharingModelsModule } from './sharing-models/sharing-models.module';
+import { OtherFeaturesModule } from './other-features/other-features.module';
+import { FederationModule } from './federation/federation.module';
+
+@Module({
+  imports: [
+    GraphQLModule.forRoot({
+      autoSchemaFile: 'schema.gql', // Provide a schema file
+    }),
+    UserModule,
+    PostModule,
+    CommentModule,
+    SubscriptionModule,
+    ScalarsModule,
+    DirectivesModule,
+    InterfacesModule,
+    UnionsModule,
+    EnumsModule,
+    FieldMiddlewareModule,
+    MappedTypesModule,
+    PluginsModule,
+    ComplexityModule,
+    ExtensionsModule,
+    CliPluginModule,
+    GeneratingSdlModule,
+    SharingModelsModule,
+    OtherFeaturesModule,
+    FederationModule,
+  ],
+})
+export class AppModule {}
+```
+
+## main.ts
+
+```js
+//main.ts
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  await app.listen(3000); // Set your desired port number here
+}
+
+bootstrap();
+```
