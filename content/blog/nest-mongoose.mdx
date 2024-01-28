@@ -1,0 +1,133 @@
+---
+title: 'nest-mongoose'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'mongoose in nest.js'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+# MongoDB Integration with Mongoose in NestJS
+
+1- Getting Started with Mongoose:
+
+- Mongoose is a widely-used Object Modeling Tool (ORM) for MongoDB in Node.js applications.
+- To begin, install Mongoose using npm:
+
+```bash
+npm install --save mongoose
+```
+
+2- Database Connection Setup:
+
+- Create a `database.providers.ts` file to set up a connection to MongoDB.
+- Use Mongoose's `connect()` function to establish a connection. This function returns a Promise.
+- Create an async provider in this file that connects to MongoDB and exports it.
+- Example:
+
+  ```ts
+  import * as mongoose from 'mongoose';
+
+  export const databaseProviders = [
+    {
+      provide: 'DATABASE_CONNECTION',
+      useFactory: (): Promise<typeof mongoose> => mongoose.connect('mongodb://localhost/nest'),
+    },
+  ];
+  ```
+
+3- Database Module:
+
+- Create a `DatabaseModule` to export the database providers, making them accessible throughout the application.
+- Example:
+
+  ```ts
+  import { Module } from '@nestjs/common';
+  import { databaseProviders } from './database.providers';
+
+  @Module({
+    providers: [...databaseProviders],
+    exports: [...databaseProviders],
+  })
+  export class DatabaseModule {}
+  ```
+
+4- Model Injection:
+
+- Define Mongoose schemas for your models (e.g., `CatSchema` for a cat entity).
+- Create model providers that use the database connection to create models.
+- Example for `Cat` model:
+
+```ts
+import { Connection } from 'mongoose';
+import { CatSchema } from './schemas/cat.schema';
+
+export const catsProviders = [
+  {
+    provide: 'CAT_MODEL',
+    useFactory: (connection: Connection) => connection.model('Cat', CatSchema),
+    inject: ['DATABASE_CONNECTION'],
+  },
+];
+```
+
+5- Service and Model Usage:
+
+- Inject the model into services (e.g., CatsService) using the @Inject() decorator.
+- Use the model to interact with the database (create, find, etc.).
+- Example:
+
+```ts
+@Injectable()
+export class CatsService {
+  constructor(@Inject('CAT_MODEL') private catModel: Model<Cat>) {}
+
+  async create(createCatDto: CreateCatDto): Promise<Cat> {
+    const createdCat = new this.catModel(createCatDto);
+    return createdCat.save();
+  }
+
+  async findAll(): Promise<Cat[]> {
+    return this.catModel.find().exec();
+  }
+}
+```
+
+6- Defining Interfaces:
+
+- Define interfaces for your entities that extend `Document` from Mongoose. This adds MongoDB-specific methods and properties to the entity.
+- Example for Cat interface:
+
+```ts
+import { Document } from 'mongoose';
+
+export interface Cat extends Document {
+  readonly name: string;
+  readonly age: number;
+  readonly breed: string;
+}
+```
+
+7- Final Module Assembly:
+
+- Assemble your feature module (e.g., `CatsModule`) by importing the `DatabaseModule` and adding the service and model providers.
+- Example:
+
+```ts
+@Module({
+  imports: [DatabaseModule],
+  controllers: [CatsController],
+  providers: [CatsService, ...catsProviders],
+})
+export class CatsModule {}
+```
+
+Conclusion
+This setup allows you to use MongoDB in your NestJS application with Mongoose for object modeling.
+It involves creating a database connection, defining models and schemas, and setting up providers for dependency injection.
+While this approach provides a lot of flexibility, it also introduces some overhead. Alternatively, you can use the `@nestjs/mongoose` package,
+which simplifies much of this process.

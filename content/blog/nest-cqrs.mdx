@@ -1,0 +1,194 @@
+---
+title: 'nest-serveStatic'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'cqrs in nest.js'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+## CQRS in a Library Analogy
+
+- Commands (Borrowing Books Desk):
+  When you want to borrow a book, you go to the borrowing desk.
+  Here, you're changing the state of the library (a book is going out).
+  In software, a command changes the state of the application, like updating a user's profile or placing an order.
+
+- Queries (Information Desk):
+  If you need to find information, like which books are available or where to find a certain genre, you go to the information desk.
+  You're not changing any state; you're just retrieving information.
+  In CQRS, a query is like this info desk, where you ask for data but don't alter anything.
+
+- Command Handlers (Librarians at Borrowing Desk):
+  The librarians at this desk are trained to process your borrowing requests. In a NestJS application,
+  command handlers take a command (like "borrow this book") and handle the logic to perform the necessary actions (update the library system to show the book is borrowed).
+
+- Query Handlers (Librarians at Information Desk):
+  The librarians at this desk answer your questions about the books.
+  They don't let you take books; they just provide information.
+  Similarly, in software, query handlers take a request for information and return the appropriate data from the database.
+
+- Events (Announcements):
+  Sometimes, when a book is returned or a new book arrives, the library makes an announcement.
+  This is similar to events in software, which signal that something has happened (like a "book returned" event).
+
+- Sagas (Event Coordinators):
+  Imagine there are event coordinators who plan out a series of actions when an event occurs.
+  For example, when a popular book is returned, they might arrange a display or notify people who were waiting for it.
+  In CQRS, a saga is a process manager that handles a series of events and commands to complete a particular sequence of actions.
+
+- Module Setup (Library Organization):
+  The library is organized with different sections and rules on how to borrow or get information.
+  In NestJS, setting up a module involves organizing and connecting all the parts (commands, queries, handlers, etc.) to work together properly.
+
+## Simplified Implementation Steps in NestJS
+
+If we translate this back to technical terms for implementing a CQRS pattern in a NestJS application:
+
+1- Install CQRS Module: This is like getting the necessary furniture and equipment for your library desks.
+2- Define Commands and Queries: Write down the types of requests visitors can make at each desk.
+3- Implement Command and Query Handlers: Train librarians on how to process each type of request.
+4- Handle Events with Event Handlers: Set up a system to make announcements when certain things happen in the library.
+5- Design Sagas for Complex Workflows: Plan out how to manage events that require multiple steps and coordination.
+6- Organize Your Module: Ensure that your library desks are well-organized and ready to handle visitors' requests.
+
+By using CQRS, we essentially create a clear and efficient structure within our application (or library) that separates actions that change data from those that read data.
+This can lead to a more organized, scalable, and maintainable system.
+
+# Implementing CQRS with NestJS
+
+NestJS provides a CQRS module that you can use to implement the pattern in your applications.
+
+## Installation
+
+To get started, you need to install the CQRS package:
+
+```bash
+$ npm install --save @nestjs/cqrs
+```
+
+## Commands
+
+Commands change the state of the application. They are dispatched to command handlers, which contain the logic to perform the necessary state changes.
+
+Example: Command and Command Handler
+
+```ts
+// heroes-game.service.ts
+@Injectable()
+export class HeroesGameService {
+  constructor(private commandBus: CommandBus) {}
+
+  async killDragon(heroId: string, killDragonDto: KillDragonDto) {
+    return this.commandBus.execute(new KillDragonCommand(heroId, killDragonDto.dragonId));
+  }
+}
+
+// kill-dragon.command.ts
+export class KillDragonCommand {
+  constructor(
+    public readonly heroId: string,
+    public readonly dragonId: string
+  ) {}
+}
+```
+
+## Queries
+
+Queries retrieve data from the application state. Like commands, they are dispatched to their respective handlers, which handle the data retrieval.
+
+## Events
+
+Events are used to signal state changes within the application. They can be dispatched by models or using the EventBus.
+
+Example: Event Class
+
+```ts
+// hero-killed-dragon.event.ts
+export class HeroKilledDragonEvent {
+  constructor(
+    public readonly heroId: string,
+    public readonly dragonId: string
+  ) {}
+}
+```
+
+## Sagas
+
+Sagas manage long-running processes and complex business transactions. They listen to events and may dispatch commands in response to those events.
+
+Example: Saga
+
+```ts
+@Injectable()
+export class HeroesGameSagas {
+  @Saga()
+  dragonKilled = (events$: Observable<any>): Observable<ICommand> => {
+    return events$.pipe(
+      ofType(HeroKilledDragonEvent),
+      map((event) => new DropAncientItemCommand(event.heroId, fakeItemID))
+    );
+  };
+}
+```
+
+## Module Setup
+
+In the module setup, all command handlers, event handlers, and sagas are registered with the module.
+
+Example: Module Setup
+
+```ts
+// heroes-game.module.ts
+@Module({
+  imports: [CqrsModule],
+  controllers: [HeroesGameController],
+  providers: [
+    HeroesGameService,
+    HeroesGameSagas,
+    ...CommandHandlers,
+    ...EventHandlers,
+    HeroRepository,
+  ],
+})
+export class HeroesGameModule {}
+```
+
+## Unhandled Exceptions
+
+Event handlers run asynchronously and should handle exceptions to avoid leaving the app in an inconsistent state.
+
+Example: Handling Unhandled Exceptions
+
+```ts
+constructor(private unhandledExceptionsBus: UnhandledExceptionBus) {
+  this.unhandledExceptionsBus
+    .pipe(takeUntil(this.destroy$))
+    .subscribe((exceptionInfo) => {
+      // Handle exception here
+    });
+}
+```
+
+## Subscribing to All Events
+
+You can subscribe to all event streams, which could be useful for logging or storing events in an event store.
+
+Example: Subscribing to Events
+
+```ts
+constructor(private eventBus: EventBus) {
+  this.eventBus
+    .pipe(takeUntil(this.destroy$))
+    .subscribe((event) => {
+      // Save events to database
+    });
+}
+```
+
+This is a high-level overview of the CQRS pattern and how to implement it using NestJS.
+Each section contains example code snippets that show how to define commands, command handlers, events, event handlers, sagas, and how to handle exceptions, which are all part of building a CQRS-based application.

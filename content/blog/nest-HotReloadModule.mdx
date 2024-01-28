@@ -1,0 +1,144 @@
+---
+title: 'nest-HotReloadModule'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'HRM in nest.js'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+# Hot Reload with MikroORM
+
+## Concept
+
+- **Hot Reload**, or **Hot Module Replacement (HMR)**, is a feature that allows you to update your application without restarting the entire server. This speeds up development by allowing for quicker testing of changes.
+
+## Importance of TypeScript Compilation
+
+- The main bottleneck in bootstrapping an application is often TypeScript compilation. HMR helps avoid recompilation of the entire project on every change, thus speeding up the development process.
+
+## Compatibility Note
+
+- **Webpack**, used for HMR, doesn't automatically handle certain files like assets or glob static paths. This means additional configuration may be required for these.
+
+## Using Nest CLI
+
+### Installation
+
+```bash
+$ npm i --save-dev webpack-node-externals run-script-webpack-plugin webpack
+```
+
+- **Note**: If using Yarn Berry, install `webpack-pnp-externals` instead of `webpack-node-externals`.
+
+### Configuration
+
+- Create `webpack-hmr.config.js` in the root directory.
+- The configuration includes:
+  - Setting the entry point for webpack.
+  - Configuring externals using `nodeExternals`.
+  - Adding plugins like `HotModuleReplacementPlugin`, `WatchIgnorePlugin`, and `RunScriptWebpackPlugin`.
+
+```javascript
+const nodeExternals = require('webpack-node-externals');
+const { RunScriptWebpackPlugin } = require('run-script-webpack-plugin');
+
+module.exports = function (options, webpack) {
+  return {
+    // ...existing options
+    entry: ['webpack/hot/poll?100', options.entry],
+    externals: [
+      nodeExternals({
+        allowlist: ['webpack/hot/poll?100'],
+      }),
+    ],
+    plugins: [
+      // ...existing plugins
+      new webpack.HotModuleReplacementPlugin(),
+      new RunScriptWebpackPlugin({ name: options.output.filename }),
+    ],
+  };
+};
+```
+
+### Enabling HMR
+
+- Modify `main.ts` to include HMR setup.
+
+```typescript
+declare const module: any;
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  await app.listen(3000);
+
+  if (module.hot) {
+    module.hot.accept();
+    module.hot.dispose(() => app.close());
+  }
+}
+bootstrap();
+```
+
+- Update `package.json` to include a new script for development.
+
+```json
+"start:dev": "nest build --webpack --webpackPath webpack-hmr.config.js --watch"
+```
+
+### Running the Application
+
+```bash
+$ npm run start:dev
+```
+
+## Without Nest CLI
+
+### Installation
+
+```bash
+$ npm i --save-dev webpack webpack-cli webpack-node-externals ts-loader run-script-webpack-plugin
+```
+
+- **Note**: With Yarn Berry, install `webpack-pnp-externals` instead.
+
+### Configuration
+
+- Create a `webpack.config.js` file with appropriate settings for entry point, target, externals, loaders, and plugins.
+
+```javascript
+const webpack = require('webpack');
+const path = require('path');
+const nodeExternals = require('webpack-node-externals');
+const { RunScriptWebpackPlugin } = require('run-script-webpack-plugin');
+
+module.exports = {
+  // ...configuration settings
+};
+```
+
+### Enabling HMR
+
+- Same as with the Nest CLI, modify `main.ts` for HMR setup.
+- Update `package.json` for the development script.
+
+```json
+"start:dev": "webpack --config webpack.config.js --watch"
+```
+
+### Running the Application
+
+```bash
+$ npm run start:dev
+```
+
+## Summary
+
+Hot Reload with MikroORM, whether using Nest CLI or not, involves setting up Webpack for HMR,
+modifying the main application file (`main.ts`) to support HMR, and updating `package.json` for an appropriate development script.
+The key is to configure Webpack correctly for your project setup and ensure it's compatible with the specifics of your application,
+like handling assets or static paths.

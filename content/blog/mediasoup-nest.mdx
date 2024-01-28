@@ -1,0 +1,343 @@
+---
+title: 'mediasoup-nest'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'mediasoup-nest'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+i want to build a nest.js application which has these features
+it has 'ws' connections with his clients,
+it needs a seperate module for it, a singleton which stores wsClient which represents a ws connection of each user with some feature added
+clients also has rest apis to communicate with,
+2 ways of communication with client ws, rest
+the reset api is over https, so it needs a folder for putting cert and key
+it has 'redis' connection and send queries and updation to redis, to make other similar services aware of the last updated changes
+it also is a seperate module
+it has 2 'rabbitMq' connection with 2 different rabbitMq services
+one of these brokers are used to communicate to the same instances
+these connections needs retry strategy in case of disconnections
+it needs a config service which gets config from env from injected into the docker-container
+its a application which wraps mediasoup to handle online audio calls over webrtc
+and these mediasoup models including 'consumer', 'dataConsumer', 'dataProducer', 'peer', 'producer',
+'remoteMedia', 'remotePeer', 'transport', 'worker', 'workerPack'
+
+it also needs some logger to use for logging,
+it also need a service to handle simulataneus rest request for starting a call, and block following requests until the first one is processes
+it also has prometheus metric service for sending its metric from this application
+it also has a service which registers a dns for this application after startup to cloudflare
+it also is implemented with ts, and it needs somewhere to put its type definitions
+
+what folder-structure do you suggest
+
+```bash
+your-app/
+├── src/
+│   ├── config/                  # Configuration files and environment-specific settings
+│   │   ├── configuration.ts     # Main configuration file
+│   │   ├── database.config.ts          # Database related configurations
+│   │   ├── redis.config.ts             # Redis specific configuration
+│   │   ├── rabbitmq.config.ts          # Configuration for RabbitMQ
+│   │   ├── mediasoup.config.ts         # Mediasoup related configurations
+│   │   ├── security.config.ts          # Security-related settings (e.g., HTTPS, JWT)
+│   │   ├── logger.config.ts            # Logger configuration settings
+│   │   ├── prometheus.config.ts        # Prometheus metrics configuration
+│   │   ├── cloudflare.config.ts        # Cloudflare DNS registration settings
+│   │   └── ...
+│   ├── constants/               # Application-wide constants
+│   │   ├── app.constants.ts         # Constants related to the application settings
+│   │   ├── error.constants.ts       # Error message or error code constants
+│   │   ├── redis.constants.ts       # Constants specific to Redis configurations
+│   │   ├── rabbitmq.constants.ts    # RabbitMQ-related constants (e.g., queue names)
+│   │   ├── mediasoup.constants.ts   # Constants related to Mediasoup configurations
+│   │   ├── security.constants.ts    # Security related constants (e.g., token secrets)
+│   │   ├── logger.constants.ts      # Logger specific constants (e.g., log levels)
+│   │   ├── prometheus.constants.ts  # Constants for Prometheus metrics
+│   │   ├── cloudflare.constants.ts  # Cloudflare related constants
+│   │   └── ...
+│   ├── controllers/             # Controllers for handling REST API requests
+│   │   ├── ws/
+│   │   │   ├── ws.controller.ts     # Controller for WebSocket connections
+│   │   │   └── ...
+│   │   ├── rest/
+│   │   │   ├── user.controller.ts   # Controller for user-related REST APIs
+│   │   │   ├── call.controller.ts   # Controller for call-related REST APIs
+│   │   │   └── ...
+│   │   ├── mediasoup/
+│   │   │   ├── consumer.controller.ts  # Controller for Mediasoup consumer operations
+│   │   │   ├── producer.controller.ts  # Controller for Mediasoup producer operations
+│   │   │   └── ...
+│   │   ├── rabbitmq/
+│   │   │   ├── rabbitmq.controller.ts  # Controller for handling RabbitMQ interactions
+│   │   │   └── ...
+│   │   ├── prometheus/
+│   │   │   ├── metrics.controller.ts   # Controller for exposing Prometheus metrics
+│   │   │   └── ...
+│   │   └── ...
+│   ├── exceptions/              # Custom exception filters
+│   │   ├── http-exception.filter.ts       # Custom filter for HTTP exceptions
+│   │   ├── websocket-exception.filter.ts  # Custom filter for WebSocket exceptions
+│   │   ├── redis-exception.filter.ts      # Custom filter for Redis-related exceptions
+│   │   ├── rabbitmq-exception.filter.ts   # Custom filter for RabbitMQ exceptions
+│   │   ├── mediasoup-exception.filter.ts  # Custom filter for Mediasoup related exceptions
+│   │   ├── database-exception.filter.ts   # Custom filter for database exceptions
+│   │   └── ...
+│   ├── filters/                 # Exception filters
+│   │   ├── any-exception.filter.ts     # Generic filter for any unhandled exception
+│   │   ├── http-exception.filter.ts    # Custom filter for HTTP exceptions
+│   │   ├── ws-exception.filter.ts      # Filter for WebSocket exceptions
+│   │   ├── validation-exception.filter.ts # Filter for handling validation exceptions
+│   │   └── ...
+│   ├── guards/                  # Guards for routes (e.g., authentication)
+│   │   ├── auth.guard.ts             # Guard for authentication checks
+│   │   ├── roles.guard.ts            # Guard for role-based access control
+│   │   ├── ws-auth.guard.ts          # Guard for WebSocket authentication
+│   │   ├── rate-limit.guard.ts       # Guard for rate limiting requests
+│   │   └── ...
+│   ├── interceptors/            # Interceptors for request/response manipulation
+│   │   ├── logging.interceptor.ts        # Interceptor for logging request and response details
+│   │   ├── transform.interceptor.ts      # Interceptor to transform the response structure
+│   │   ├── timeout.interceptor.ts        # Interceptor to implement request timeouts
+│   │   ├── error.interceptor.ts          # Interceptor for uniform error responses
+│   │   ├── cache.interceptor.ts          # Interceptor for caching certain responses
+│   │   ├── metrics.interceptor.ts     # Interceptor for collecting request metrics
+│   │   └── ...
+│   ├── interfaces/              # TypeScript interfaces and types
+│   │   ├── user.interface.ts         # Interface for user data objects
+│   │   ├── auth.interface.ts         # Interface for authentication-related data
+│   │   ├── http-request.interface.ts # Interface for HTTP request custom properties
+│   │   ├── ws-message.interface.ts   # Interface for WebSocket messages
+│   │   ├── redis.interface.ts        # Interface for Redis client or data structures
+│   │   ├── rabbitmq.interface.ts     # Interface for RabbitMQ message structures
+│   │   ├── mediasoup.interface.ts    # Interface for Mediasoup related objects
+│   │   ├── metrics.interface.ts      # Interface for metrics data structures
+│   │   └── ...
+│   ├── middleware/              # Middleware for request processing
+├── middleware/
+│   │   ├── logger.middleware.ts       # Middleware for logging request details
+│   │   ├── auth.middleware.ts         # Middleware for authentication (e.g., JWT verification)
+│   │   ├── cors.middleware.ts         # Middleware to handle CORS settings
+│   │   ├── request-validation.middleware.ts # Middleware for validating request data
+│   │   ├── rate-limit.middleware.ts   # Middleware for rate limiting to prevent abuse
+│   │   ├── error-handler.middleware.ts # Middleware for centralized error handling
+│   │   └── ...
+│   ├── modules/                 # Application modules
+│   │   ├── ws/                  # WebSocket module
+│   │   │   ├── ws.gateway.ts          # WebSocket gateway for handling connections and messages
+│   │   │   ├── ws.service.ts          # Service for WebSocket-related business logic
+│   │   │   ├── ws.events.ts           # Definitions of WebSocket events or constants
+│   │   │   ├── ws.adapter.ts          # Custom WebSocket adapter, if needed
+│   │   │   ├── dtos/                  # Data Transfer Objects (DTOs) for WebSocket data
+│   │   │   │   ├── message.dto.ts     # DTO for WebSocket messages
+│   │   │   │   └── ...
+│   │   │   ├── interfaces/            # TypeScript interfaces specific to WebSocket functionality
+│   │   │   │   ├── ws-message.interface.ts # Interface for WebSocket message structure
+│   │   │   │   └── ...
+│   │   │   ├── exceptions/            # Custom exceptions for WebSocket errors
+│   │   │   └── ...
+│   │   ├── rest/                # REST API module
+│   │   │   ├── controllers/            # Controllers for handling REST API requests
+│   │   │   │   ├── user.controller.ts  # Controller for user-related operations
+│   │   │   │   ├── auth.controller.ts  # Controller for authentication-related operations
+│   │   │   │   └── ...
+│   │   │   ├── services/               # Services for business logic specific to REST APIs
+│   │   │   │   ├── user.service.ts     # Service for user-related business logic
+│   │   │   │   ├── auth.service.ts     # Service for authentication-related logic
+│   │   │   │   └── ...
+│   │   │   ├── dtos/                   # Data Transfer Objects for REST API data structures
+│   │   │   │   ├── create-user.dto.ts  # DTO for user creation data
+│   │   │   │   ├── login.dto.ts        # DTO for login data
+│   │   │   │   └── ...
+│   │   │   ├── interfaces/             # TypeScript interfaces specific to REST API functionality
+│   │   │   └── ...
+│   │   ├── redis/               # Redis integration module
+│   │   ├── rabbitmq/            # RabbitMQ integration module
+│   │   ├── mediasoup/           # Mediasoup integration module
+│   │   │   ├── models/              # Mediasoup related models
+│   │   │   │   ├── consumer.ts      # Mediasoup Consumer model
+│   │   │   │   ├── dataConsumer.ts  # Mediasoup DataConsumer model
+│   │   │   │   ├── dataProducer.ts  # Mediasoup DataProducer model
+│   │   │   │   ├── peer.ts          # Mediasoup Peer model
+│   │   │   │   ├── producer.ts      # Mediasoup Producer model
+│   │   │   │   ├── remoteMedia.ts   # Mediasoup RemoteMedia model
+│   │   │   │   ├── remotePeer.ts    # Mediasoup RemotePeer model
+│   │   │   │   ├── transport.ts     # Mediasoup Transport model
+│   │   │   │   ├── worker.ts        # Mediasoup Worker model
+│   │   │   │   ├── workerPack.ts    # Mediasoup WorkerPack model
+│   │   │   │   └── ...
+│   │   │   ├── services/            # Services related to Mediasoup
+│   │   │   └── ...
+│   │   ├── logger/              # Logging module
+│   │   ├── prometheus/          # Prometheus metrics module
+│   │   ├── dns-registration/    # DNS registration with Cloudflare module
+│   │   └── ...
+│   ├── pipes/                   # Custom pipes
+│   ├── providers/               # Custom providers (e.g., services, factories)
+│   ├── strategies/              # Strategies (e.g., retry strategies)
+│   ├── types/                   # TypeScript type definitions
+│   └── main.ts                  # Application entry point
+├── test/                        # Test files
+├── ssl/                         # SSL certificates and keys
+│   ├── cert.pem                 # SSL certificate
+│   └── key.pem                  # SSL key
+├── docker/                      # Docker related files
+│   ├── Dockerfile               # Dockerfile for building the application
+│   └── ...
+├── .env                         # Environment variables file
+├── .gitignore                   # Specifies intentionally untracked files to ignore
+├── package.json                 # Project manifest
+└── tsconfig.json                # TypeScript configuration
+
+
+
+```
+
+```bash
+your-app/
+├── src/
+│   ├── app.module.ts # Root module of the application
+│   ├── main.ts # Application bootstrap file
+│   ├── common/ # Common utilities, decorators, filters, pipes, and guards
+│   │   ├── decorators/
+│   │   ├── exceptions/
+│   │   ├── filters/
+│   │   ├── guards/
+│   │   │   ├── auth.guard.ts # Guard for validating tokens
+│   │   ├── interceptors/
+│   │   ├── pipes/
+│   │   └── ...
+│   ├── config/ # Application configuration management
+│   │   ├── configuration.service.ts # Service to manage configurations
+│   │   └── ...
+│   ├── modules/ # Application feature modules
+│   │   ├── call-management/ # Call handling logic
+│   │   │   ├── call-management.module.ts
+│   │   │   ├── call-management.service.ts
+│   │   │   ├── call-management.controller.ts
+│   │   │   └── ...
+│   │   ├── websocket/ # WebSocket communication logic
+│   │   │   ├── websocket.module.ts
+│   │   │   ├── websocket.gateway.ts
+│   │   │   └── ...
+│   │   ├── mediasoup/ # Mediasoup integration
+│   │   │   ├── mediasoup.module.ts
+│   │   │   ├── mediasoup.service.ts
+│   │   │   └── ...
+│   │   ├── messaging/ # RabbitMQ and Redis integration
+│   │   │   ├── messaging.module.ts
+│   │   │   ├── rabbitmq/
+│   │   │   │   ├── rabbitmq.service.ts
+│   │   │   │   └── ...
+│   │   │   ├── redis/
+│   │   │   │   ├── redis.service.ts
+│   │   │   │   └── ...
+│   │   │   └── ...
+│   │   ├── metrics/ # Metrics collection (Prometheus)
+│   │   │   ├── metrics.module.ts
+│   │   │   ├── metrics.service.ts
+│   │   │   └── ...
+│   │   ├── dns/ # DNS management
+│   │   │   ├── dns.module.ts
+│   │   │   ├── dns.service.ts
+│   │   │   └── ...
+│   │   └── ...
+│   ├── ssl/ # SSL certificates and keys
+│   └── types/ # TypeScript type definitions and interfaces
+├── test/ # Test files
+├── docker/ # Docker configuration files
+├── .env # Environment variables file
+├── .env.example # Example for .env file
+├── .gitignore # Specifies intentionally untracked files to ignore
+├── package.json # Project manifest
+├── package-lock.json # Locked versions of the package dependencies
+└── tsconfig.json # TypeScript configuration
+```
+
+```bash
+your-app/
+├── src/
+│   ├── app.module.ts                     # Root module of the application
+│   ├── main.ts                           # Application bootstrap file
+│   ├── config/                           # Configuration management
+│   │   ├── configuration.ts              # Main configuration file aggregating all configs
+│   │   ├── database.config.ts            # Database configuration settings
+│   │   ├── redis.config.ts               # Redis configuration settings
+│   │   ├── rabbitmq-one.config.ts        # Configuration for the first RabbitMQ server
+│   │   ├── rabbitmq-two.config.ts        # Configuration for the second RabbitMQ server
+│   │   ├── mediasoup.config.ts           # MediaSoup configuration settings
+│   │   ├── logger.config.ts              # Logger configuration settings
+│   │   └── ...
+│   ├── constants/                        # Application-wide constants
+│   │   ├── app.constants.ts              # General constants used across the app
+│   │   ├── websocket.constants.ts        # Constants specific to WebSocket functionality
+│   │   ├── rest-api.constants.ts         # Constants for REST API layer
+│   │   ├── rabbitmq.constants.ts         # RabbitMQ related constants
+│   │   ├── redis.constants.ts            # Redis specific constants
+│   │   ├── mediasoup.constants.ts        # Constants for MediaSoup configurations
+│   │   ├── metrics.constants.ts          # Constants related to metrics and monitoring
+│   │   ├── dns.constants.ts              # Constants for DNS management
+│   │   ├── error.codes.ts                # Error codes and related constants
+│   │   └── ...
+│   ├── modules/                          # Feature modules
+│   │   ├── logger/                       # Logger module
+│   │   │   ├── logger.module.ts               # Logger module definition
+│   │   │   ├── logger.service.ts              # Logger service containing the logging logic
+│   │   │   ├── constants/                     # Constants specific to the logger module
+│   │   │   │   └── logger.constants.ts        # Defines constants like log levels, formats, etc.
+│   │   │   ├── dto/                           # Data Transfer Objects for the logger module
+│   │   │   │   └── log-message.dto.ts        # DTO for log messages, if needed
+│   │   │   ├── interfaces/                    # TypeScript interfaces specific to logging
+│   │   │   │   └── logger.interface.ts        # Interface for logger service methods and properties
+│   │   │   ├── strategies/                    # Logging strategies (e.g., file, console)
+│   │   │   │   ├── console.strategy.ts        # Strategy for console logging
+│   │   │   │   ├── file.strategy.ts           # Strategy for file logging
+│   │   │   │   └── ...                        # Other potential logging strategies
+│   │   │   └── utils/                         # Utility functions specific to the logger module
+│   │   │       └── logging.util.ts
+│   │   ├── websocket/                    # WebSocket module
+│   │   │   └── ...
+│   │   ├── rest-api/                     # REST API module
+│   │   │   └── ...
+│   │   ├── shared-services/              # Shared services
+│   │   │   └── ...
+│   │   ├── rabbitmq/                     # RabbitMQ module
+│   │   │   └── ...
+│   │   ├── redis/                        # Redis module
+│   │   │   └── ...
+│   │   ├── mediasoup/                    # MediaSoup module
+│   │   │   └── ...
+│   │   ├── metrics/                      # Metrics module
+│   │   │   └── ...
+│   │   ├── dns/                          # DNS management module
+│   │   │   └── ...
+│   │   └── ...
+│   ├── common/                           # Common utilities, decorators, filters, pipes, and guards
+│   │   ├── middleware/                   # Middleware
+│   │   │   └── ...
+│   │   ├── filters/                      # Exception filters
+│   │   ├── guards/                       # Route guards
+│   │   ├── interceptors/                 # Interceptors
+│   │   ├── decorators/                   # Custom decorators
+│   │   ├── pipes/                        # Custom pipes
+│   │   └── ...
+│   ├── interfaces/                       # TypeScript interfaces and types
+│   │   └── ...
+│   ├── ssl/                              # SSL certificates and keys
+│   │   └── ...
+│   └── types/                            # TypeScript type definitions and interfaces
+├── test/                                 # Test files
+│   └── ...
+├── docker/                               # Docker configuration files
+│   └── ...
+├── .env                                  # Environment variables file
+├── .gitignore                            # Specifies intentionally untracked files to ignore
+├── package.json                          # Project manifest
+└── tsconfig.json                         # TypeScript configuration
+
+
+```

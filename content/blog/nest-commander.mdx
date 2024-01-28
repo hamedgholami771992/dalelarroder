@@ -1,0 +1,38 @@
+---
+title: 'nest-automock'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'openapi in nest.js'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+Nest-Commander
+
+The excerpt you've provided seems to be a guide on how to create command line applications using a NestJS package called nest-commander.
+Below, I'll break down the key points of the guide to clarify how to use nest-commander:
+
+1- Introduction to nest-commander: - nest-commander is a third-party package that allows you to build command line applications using NestJS-like structures and decorators. - It is not maintained by the NestJS core team, so any issues should be reported to the repository specific to nest-commander.
+
+2- Installation: - To use nest-commander, you first need to install it using npm with the command npm i nest-commander.
+
+3- Creating a Command File: - You create new commands by using the @Command() decorator on classes and @Option() decorator on methods within those classes. - Each command class should implement the CommandRunner abstract class and include a run method that returns a Promise<void>. - The run method takes parameters (string[]) and options (Record<string, any>), where parameters are arguments not associated with an option flag, and options correspond to flags defined with @Option() decorators.
+
+4- Running the Command: - Similar to how you'd create a NestJS server with NestFactory, you can use CommandFactory.run() to execute your CLI application. - By default, the NestJS logger is disabled, but you can enable it by passing a logger instance or an array of log levels to the run function.
+
+5- Error Handling and Memory Management: - CommandFactory handles calling NestFactory and ensures app.close() is called when necessary to prevent memory leaks. - You can use a try/catch block or .catch() method to handle errors when running the command.
+
+6- Testing: - nest-commander provides utilities for testing your CLI commands, similar to NestJS's testing tools. - You can use CommandTestFactory for testing, which allows you to override providers and test your command in isolation.
+
+7- Example: - An example command class is provided, which demonstrates how to define and handle different options (-n, -s, -b) using custom parsers. - The --help flag is automatically supported, which is a standard feature in command line tools.
+
+8- Integration with a Nest Module: - The command class (e.g., BasicCommand) needs to be provided in a NestJS module (e.g., AppModule) so that it can be used by the application.
+
+9- Running the CLI Application: - In your main.ts, you call bootstrap() which in turn calls CommandFactory.run(AppModule), starting your CLI application.
+
+The guide is essentially showing you how to write a CLI application in a style similar to writing a web server with NestJS, taking advantage of the framework's dependency injection and structure.
+It leverages decorators to define command options and arguments, and integrates with Nest's module system to allow for easy testing and maintainability.

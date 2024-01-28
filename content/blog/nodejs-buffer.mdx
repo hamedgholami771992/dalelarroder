@@ -1,0 +1,62 @@
+---
+title: 'node-v8'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'node.js v8'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+# Node.js Buffer Class Overview
+
+The Node.js Buffer class is a global class that provides a way to work with binary data. Here's a summary of its main features and usage:
+
+## Buffer Creation
+
+- `Buffer.alloc(size)`: Creates a zero-filled buffer of `size` bytes.
+- `Buffer.allocUnsafe(size)`: Creates an uninitialized buffer of `size` bytes (faster but may contain old data).
+- `Buffer.from(array)`: Creates a buffer from an array of byte values.
+- `Buffer.from(buffer)`: Creates a buffer by copying another buffer.
+- `Buffer.from(string[, encoding])`: Creates a buffer by encoding a string using the specified encoding (default is 'utf8').
+
+## Buffer Methods
+
+- `.toString([encoding[, start[, end]]])`: Converts the buffer to a string with the specified encoding.
+- `.fill(value[, offset[, end]][, encoding])`: Fills the buffer with the specified value.
+- `.equals(otherBuffer)`: Compares if two buffers are equal.
+- `.indexOf(value[, byteOffset][, encoding])`: Finds the index of a value in the buffer.
+- `.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])`: Copies data from one buffer to another.
+
+## Buffers and Character Encodings
+
+Node.js supports several character encodings such as 'utf8', 'utf16le', 'latin1', 'base64', and 'hex'. When converting between Buffers and strings, specify the desired encoding.
+
+## Static Methods and Properties
+
+- `Buffer.isBuffer(obj)`: Checks if an object is a Buffer.
+- `Buffer.byteLength(string[, encoding])`: Returns the byte length of a string.
+- `Buffer.concat(list[, totalLength])`: Concatenates a list of buffers into a single buffer.
+
+## TypedArray Compatibility
+
+- Buffer instances are also `Uint8Array` instances. They share the same methods and properties, such as `.length`, `.subarray()`, and indexing (`buffer[index]`).
+
+## Handling Binary Data
+
+- Buffers are particularly useful for reading and writing binary data in streams, manipulating image data, interacting with the file system, or handling network communications.
+
+## Safety Considerations
+
+- `Buffer.allocUnsafe()` and `Buffer.allocUnsafeSlow()` create buffers faster but may contain old, potentially sensitive data. Use `Buffer.alloc()` for more secure buffer allocation.
+
+## Blob Support
+
+- Node.js v16.7.0 and later support the `Blob` class, allowing for efficient and safe handling of binary data for use in cases like file I/O.
+
+## Deprecation of Older APIs
+
+- The use of `new Buffer()` constructor is deprecated. Use `Buffer.from()`, `Buffer.alloc()`, and `Buffer.allocUnsafe()` instead.

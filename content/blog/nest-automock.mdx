@@ -1,0 +1,48 @@
+---
+title: 'nest-automock'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'openapi in nest.js'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+Overview of Automock
+Automock is a library designed to simplify unit testing in TypeScript applications, particularly useful in Nest.js.
+It automates the mocking of external dependencies for classes, reducing the manual effort needed to set up mocks in tests.
+
+Key Points
+1- Integration with Nest.js Dependency Injection (DI): - Nest.js uses a DI container that is crucial both for running applications and for testing. - In tests, mocking dependencies is essential for isolating components and testing them independently. - Automock streamlines this by providing a virtual container where dependencies are automatically mocked, eliminating the need for manual mock setup.
+
+2- Installation of Automock: - Automock supports both Jest and Sinon testing frameworks. - You need to install Automock packages along with an adapter for Nest.js. - For Jest:
+`bash
+        npm i -D @automock/jest @automock/adapters.nestjs
+        ` - For Sinon:
+`bash
+        npm i -D @automock/sinon @automock/adapters.nestjs
+        `
+
+3- Example Usage with Jest: - Assume you have a CatsService class that depends on a Database class. - Normally, you'd manually mock the Database class when testing CatsService. - With Automock, you use TestBed from @automock/jest to automatically create mocks for the dependencies.
+
+4- Test Setup:
+
+    - You create a test environment for CatsService using TestBed.create(CatsService).compile().
+    - unit gives you the instance of CatsService, and unitRef.get(Database) gives you a mocked instance of Database.
+    - You can set up mock responses and verify interactions in your tests.
+
+5- Extended Example with Logger: - Adding a Logger class to CatsService demonstrates how Automock handles multiple dependencies. - In the test setup, you also mock the Logger dependency.
+
+6- .mock().using() for Mock Implementations: - Automock provides a declarative way to specify mock implementations. - You define the mock behavior directly in the test setup, reducing the need for manual mocking in the test body.
+
+7- Working with Dependency References: - unit and unitRef in the TestBed setup provide access to the class instance and its dependencies, respectively. - This setup allows for direct interaction with the class and its mocked dependencies.
+
+8- Handling Different Providers: - Providers in Nest.js, like services or repositories, are essential for application functionality. - Automock supports string/symbol-based injection tokens, in line with Nest.js practices. - This allows for mocking dependencies that are provided using custom tokens.
+
+Conclusion
+Automock simplifies the process of unit testing in Nest.js applications by automating the creation of mock objects for class dependencies.
+This allows developers to focus more on writing test cases rather than setting up mocks, leading to more efficient and robust unit testing.
+Automock works well with Jest and Sinon and integrates seamlessly with Nest.js's DI system, making it a valuable tool for testing in the Nest.js ecosystem.

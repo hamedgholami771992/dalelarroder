@@ -8,7 +8,7 @@ const siteMetadata = {
   siteUrl: 'https://hamedgholami.com',
   siteRepo: 'https://github.com/hamedgholami771992',
   siteLogo: '/static/images/logo.png',
-  image: '/static/images/avatar.webp',
+  image: '/static/images/avatar.jpg',
   socialBanner: '/static/images/twitter-card.png',
   email: 'hamedgholami771992@gmail.com',
   github: 'https://github.com/hamedgholami771992',

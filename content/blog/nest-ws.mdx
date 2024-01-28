@@ -1,0 +1,481 @@
+---
+title: 'nest-ws'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'ws in nest.js'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+```bash
+nest-websocket-advanced/
+|-- src/
+|   |-- chat/
+|   |   |-- chat.gateway.ts
+|   |   |-- chat.service.ts
+|   |-- common/
+|   |   |-- interceptors/
+|   |   |   |-- transform.interceptor.ts
+|   |   |-- filters/
+|   |   |   |-- ws-exception.filter.ts
+|   |-- auth/
+|   |   |-- auth.module.ts
+|   |   |-- auth.service.ts
+|   |   |-- auth.gateway.ts
+|   |-- utils/
+|   |   |-- websocket.adapter.ts
+|   |-- app.module.ts
+|-- test/
+|   |-- chat.gateway.spec.ts
+|-- package.json
+
+
+
+```
+
+<ul>
+  <li>
+    `src/chat/chat.gateway.ts`: Main WebSocket gateway for chat functionality. Handles various
+    events like message sending, receiving, and broadcasting.
+  </li>
+  <li>`src/chat/chat.service.ts`: Service file for handling chat-related business logic.</li>
+  <li>
+    `src/common/interceptors/transform.interceptor.ts`: Interceptor for transforming WebSocket
+    responses.
+  </li>
+  <li>
+    `src/common/filters/ws-exception.filter.ts`: WebSocket exception filter for handling errors in
+    WebSocket communication.
+  </li>
+  <li>
+    `src/auth/auth.module.ts`, `src/auth/auth.service.ts`, `src/auth/auth.gateway.ts`:
+    Authentication module, service, and gateway for handling WebSocket authentication.
+  </li>
+  <li>
+    `src/utils/websocket.adapter.ts`: Custom WebSocket adapter for integrating different WebSocket
+    libraries or handling specific configurations.
+  </li>
+  <li>`test/chat.gateway.spec.ts`: Test file for the chat gateway.</li>
+</ul>
+
+<p>
+  `HINT`: Gateways can be treated as providers; this means they can inject dependencies through the
+  class constructor. Also, gateways can be injected by other classes (providers and controllers) as
+  well.
+</p>
+
+<p>
+  `WARNING`: Gateways are not instantiated until they are referenced in the providers array of an
+  existing module.
+</p>
+
+<p>
+```js
+@SubscribeMessage('events')
+handleEvent(client: Socket, data: string): string {
+  return data;
+}
+
+````
+
+In the example above, the handleEvent() function takes two arguments. The first one is a platform-specific socket instance, while the second one is the data received from the client. This approach is not recommended though, because it requires mocking the socket instance in each unit test.
+</p>
+
+
+
+<p>
+WARNING
+You should return a class instance that implements WsResponse if your data field relies on ClassSerializerInterceptor, as it ignores plain JavaScript object responses.
+what does it mean?
+
+The Warning Explained
+The warning is about how ClassSerializerInterceptor interacts with WebSocket responses. When you return data from a WebSocket event handler (in a gateway), and this data is a plain JavaScript object, the ClassSerializerInterceptor will not process this object.
+
+This means that if you have a response object that you expect to be serialized (i.e., transformed according to rules defined in your DTO classes), it will not happen automatically if you return a plain object.
+
+To ensure that your data gets serialized as expected, you need to return an instance of a class that implements the WsResponse interface. By doing so, you make sure that the ClassSerializerInterceptor recognizes and processes the response correctly, applying any serialization rules defined in the class.
+
+Example
+Without ClassSerializerInterceptor applied:
+
+```ts
+@SubscribeMessage('myEvent')
+handleMyEvent(@MessageBody() data: MyDto): WsResponse<MyDto> {
+  return { event: 'responseEvent', data: data }; // Plain object, no serialization
+}
+
+````
+
+With ClassSerializerInterceptor applied:
+
+```ts
+class MyResponse implements WsResponse<MyDto> {
+  event: string;
+  data: MyDto;
+
+  constructor(event: string, data: MyDto) {
+    this.event = event;
+    this.data = data;
+  }
+}
+
+@SubscribeMessage('myEvent')
+handleMyEvent(@MessageBody() data: MyDto): MyResponse {
+  return new MyResponse('responseEvent', data); // Class instance, serialization applied
+}
+
+```
+
+In the second example, by returning an instance of MyResponse (which implements WsResponse),
+you ensure that the serialization rules defined in MyDto are applied to the data field in the response.
+This is crucial when you rely on specific transformations or exclusions in your DTOs for WebSocket responses.
+
+</p>
+
+<p>
+Lifecycle Hooks in NestJS WebSockets
+Lifecycle hooks are special methods that are called at specific points in the lifecycle of a WebSocket gateway. They allow you to execute custom logic at these points, such as when the gateway is initialized, when a client connects, or when a client disconnects.
+
+The Three Lifecycle Hooks
+OnGatewayInit
+
+Purpose: This hook is triggered when the gateway is initialized.
+Method to Implement: afterInit().
+Argument: It takes the server instance as an argument. This instance is library-specific, meaning it depends on the WebSocket library you are using (like socket.io or ws).
+Usage: You can use afterInit() to perform any setup or initialization logic that your gateway needs once the WebSocket server is ready. For example, you might log that the server has started or set up some initial state.
+OnGatewayConnection
+
+Purpose: This hook is activated each time a new client connects to the gateway.
+Method to Implement: handleConnection().
+Argument: It receives the client socket instance as an argument. This instance represents the connected client.
+Usage: You can use handleConnection() to handle any logic that should occur when a client connects. This could include logging the connection, authenticating the client, or setting up resources specific to that client.
+OnGatewayDisconnect
+
+Purpose: This hook is invoked when a client disconnects from the gateway.
+Method to Implement: handleDisconnect().
+Argument: Similar to OnGatewayConnection, it also takes the client socket instance.
+Usage: handleDisconnect() can be used to clean up any resources or state related to the disconnected client. You might also log the disconnection or update the status of the client in your application.
+Implementing the Hooks in a Gateway
+Here's a basic example of how these hooks can be implemented in a WebSocket gateway class:
+
+```ts
+import {
+  WebSocketGateway,
+  OnGatewayInit,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  WebSocketServer,
+} from '@nestjs/websockets';
+import { Server, Socket } from 'socket.io';
+
+@WebSocketGateway()
+export class MyGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+  @WebSocketServer()
+  server: Server;
+
+  afterInit(server: Server) {
+    console.log('WebSocket server initialized');
+  }
+
+  handleConnection(client: Socket, ...args: any[]) {
+    console.log(`Client connected: ${client.id}`);
+  }
+
+  handleDisconnect(client: Socket) {
+    console.log(`Client disconnected: ${client.id}`);
+  }
+}
+```
+
+</p>
+Binding pipes
+The following example uses a manually instantiated method-scoped pipe. Just as with HTTP based applications, you can also use gateway-scoped pipes (i.e., prefix the gateway class with a @UsePipes() decorator).
+
+```ts
+@UsePipes(new ValidationPipe())
+@SubscribeMessage('events')
+handleEvent(client: Client, data: unknown): WsResponse<unknown> {
+  const event = 'events';
+  return { event, data };
+}
+```
+
+```ts
+//with AI
+import { PipeTransform, Injectable, ArgumentMetadata, BadRequestException } from '@nestjs/common';
+import { validate } from 'class-validator';
+import { plainToClass } from 'class-transformer';
+import { WsException } from '@nestjs/websockets';
+
+@Injectable()
+export class ValidationPipe implements PipeTransform<any> {
+  async transform(value: any, { metatype }: ArgumentMetadata) {
+    if (!metatype || !this.toValidate(metatype)) {
+      return value;
+    }
+    const object = plainToClass(metatype, value);
+    const errors = await validate(object);
+    if (errors.length > 0) {
+      throw new WsException('Validation failed');
+    }
+    return value;
+  }
+
+  private toValidate(metatype: Function): boolean {
+    const types: Function[] = [String, Boolean, Number, Array, Object];
+    return !types.includes(metatype);
+  }
+}
+```
+
+Explanation
+transform method: This is where the actual validation occurs. The method converts the plain value to a class instance (plainToClass),
+then validates this instance (validate). If there are any validation errors, it throws a WsException.
+
+toValidate method: A helper method to determine if the metatype (the expected type of the value) should be validated.
+This example skips validation for basic types like String, Boolean, Number, etc., and focuses on custom classes.
+
+<p>
+Concept of Adapters in Nest.js WebSockets:
+Adapters in Nest.js WebSockets are used to integrate different WebSocket libraries or implementations into a Nest.js application. 
+Since Nest.js is platform-agnostic, you can use various WebSocket libraries by implementing the WebSocketAdapter interface. 
+This interface requires the implementation of specific methods that manage the lifecycle and behavior of WebSocket connections.
+
+Key Methods in WebSocketAdapter Interface
+create: This method is responsible for creating a WebSocket server instance.
+It takes necessary parameters, such as the port number and options, to set up the server.
+
+bindClientConnect: This method binds a callback function to the client connection event.
+It's invoked when a new client connects to the server.
+
+bindClientDisconnect (optional): This method binds a callback function to the client disconnection event.
+It's invoked when a client disconnects from the server.
+
+bindMessageHandlers: This method binds incoming messages to their corresponding message handlers.
+It ensures that messages are correctly routed and processed.
+
+close: This method is used to terminate the server instance, effectively shutting down the WebSocket server.
+
+Examples of Adapters
+Extending socket.io with RedisIoAdapter:
+
+socket.io is a popular WebSocket library, and Nest.js provides an IoAdapter for it.
+You can extend this adapter to add custom functionality, such as using Redis for broadcasting events across multiple instances in a load-balanced environment.
+The example shows how to create a RedisIoAdapter class that extends IoAdapter and integrates Redis for message broadcasting.
+Using WsAdapter with ws library:
+
+The ws library is another WebSocket library known for its speed and compatibility with native browser WebSockets.
+Nest.js has a built-in WsAdapter for the ws library.
+To use it, you install @nestjs/platform-ws and then set the adapter in your main application file.
+Custom Adapter Implementation (Advanced)
+The documentation also illustrates how to create a custom adapter using the ws library.
+The custom WsAdapter class is shown as an example, demonstrating how to implement the methods required by the WebSocketAdapter interface.
+This includes creating a WebSocket server, handling connection events, binding message handlers, and closing the server.
+
+</p>
+
+### Extend socket.io
+
+<p>
+WARNING
+To use socket.io with multiple load-balanced instances you either have to disable polling by setting transports: 
+['websocket'] in your clients socket.io configuration or you have to enable cookie based routing in your load balancer. 
+Redis alone is not enough. See here for more information.
+
+Background: Load Balancing and socket.io
+Load Balancing: When you have a web application running on multiple servers (instances),
+a load balancer distributes incoming client requests across these servers.
+This ensures that no single server gets overwhelmed and helps in achieving better application performance and reliability.
+
+socket.io and Connection Persistence: socket.io is a WebSocket library that enables real-time,
+bidirectional communication between web clients and servers.
+One of the key challenges in a load-balanced setup is maintaining a persistent connection between a client and a specific server instance.
+In WebSocket communication, it's crucial that once a client establishes a connection with a server,
+all subsequent interactions should be with the same server instance (this is known as "session affinity" or "sticky sessions").
+
+The Warning Explained
+
+Disabling Polling in socket.io:
+
+socket.io uses two methods to establish a connection: WebSockets and HTTP long polling.
+Long polling is a technique where the client repeatedly polls the server to check for new data.
+In a load-balanced environment, if a client uses long polling, subsequent requests may reach different server instances, causing issues in maintaining a stable WebSocket connection.
+The warning suggests setting transports: ['websocket'] in your client's socket.io configuration.
+This configuration forces socket.io to use only WebSockets and not long polling, reducing the risk of connection issues in a load-balanced setup.
+
+Enabling Cookie-Based Routing:
+
+Another solution is to enable cookie-based routing in your load balancer.
+This means the load balancer will use a specific cookie to identify and route a client's requests to the same server instance they initially connected to.
+This approach ensures that even if long polling is used, the client maintains a continuous connection with the same server instance.
+
+Limitation of Redis Alone:
+
+Redis is often used with socket.io for message broadcasting across multiple instances.
+However, Redis does not solve the issue of session affinity in a load-balanced environment.
+Therefore, the warning indicates that while using Redis is beneficial for message distribution, it's not sufficient for handling the session affinity problem.
+You must also configure either WebSocket-only transport or cookie-based routing in your load balancer.
+
+```ts
+import { IoAdapter } from '@nestjs/platform-socket.io';
+import { ServerOptions } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { createClient } from 'redis';
+
+export class RedisIoAdapter extends IoAdapter {
+  private adapterConstructor: ReturnType<typeof createAdapter>;
+
+  async connectToRedis(): Promise<void> {
+    const pubClient = createClient({ url: `redis://localhost:6379` });
+    const subClient = pubClient.duplicate();
+
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+
+    this.adapterConstructor = createAdapter(pubClient, subClient);
+  }
+
+  createIOServer(port: number, options?: ServerOptions): any {
+    const server = super.createIOServer(port, options);
+    server.adapter(this.adapterConstructor);
+    return server;
+  }
+}
+```
+
+<q>
+why do we need to clone "pubClient" and call connect on it once again?what it is doing?
+
+1. Publisher and Subscriber Clients in Redis
+   Redis Pub/Sub Model: Redis supports a publish/subscribe messaging paradigm.
+   This model allows clients to subscribe to specific channels and receive messages published to those channels.
+   Publisher (pubClient): A publisher client in Redis is responsible for publishing messages to a channel.
+   Subscriber (subClient): A subscriber client is responsible for subscribing to channels and listening for messages that are published to those channels.
+2. Why Duplicate the Client?
+   Separation of Concerns: In the Redis Pub/Sub model, it's often a good practice to separate the publishing and subscribing functionalities.
+   This separation helps in managing the flow of outgoing and incoming messages distinctly.
+   Concurrency and Blocking Operations: Redis Pub/Sub operations can be blocking.
+   If you use the same client for both publishing and subscribing,
+   there could be a scenario where a blocking operation (like waiting for a message in a subscribe call) could prevent that client from performing other operations (like publishing).
+   Having separate clients ensures that publish and subscribe operations don't block each other.
+3. Connecting Both Clients
+   Establishing Independent Connections: Even though subClient is a duplicate of pubClient, they are separate instances with their own connections to the Redis server.
+   It's necessary to explicitly connect both clients to Redis because:
+   They operate independently.
+   Each client maintains its own connection to the Redis server.
+   This ensures that both publishing and subscribing capabilities are active and can operate concurrently without any interference.
+4. In the Context of socket.io and Redis
+   In a socket.io application with multiple instances, Redis is used to broadcast messages across these instances.
+   When a message needs to be broadcasted:
+   The message is published to a channel (using pubClient).
+   All instances subscribed to that channel (using their respective subClients) receive the message.
+   This mechanism ensures that a message sent from one instance of your application is received by clients connected to all other instances.
+   Conclusion
+   By duplicating and connecting both the pubClient and subClient, you ensure that your socket.io application can effectively publish and subscribe to messages across multiple instances using Redis. This setup is crucial for maintaining real-time data consistency and message broadcasting in scalable, distributed applications.
+   </q>
+
+</p>
+
+### Extend socket.io
+
+<p>
+HINT
+ws library does not support namespaces (communication channels popularised by socket.io). 
+However, to somehow mimic this feature, you can mount multiple ws servers on different paths (example: @WebSocketGateway({ path: '/users' })).
+</p>
+
+### Advanced (custom adapter)
+
+<p>
+```ts
+import * as WebSocket from 'ws';
+import { WebSocketAdapter, INestApplicationContext } from '@nestjs/common';
+import { MessageMappingProperties } from '@nestjs/websockets';
+import { Observable, fromEvent, EMPTY } from 'rxjs';
+import { mergeMap, filter } from 'rxjs/operators';
+
+export class WsAdapter implements WebSocketAdapter {
+  constructor(private app: INestApplicationContext) {}
+
+create(port: number, options: any = {}): any {
+return new WebSocket.Server({ port, ...options });
+}
+
+bindClientConnect(server, callback: Function) {
+server.on('connection', callback);
+}
+
+bindMessageHandlers(
+client: WebSocket,
+handlers: MessageMappingProperties[],
+process: (data: any) => Observable<any>,
+) {
+fromEvent(client, 'message')
+.pipe(
+mergeMap(data => this.bindMessageHandler(data, handlers, process)),
+filter(result => result),
+)
+.subscribe(response => client.send(JSON.stringify(response)));
+}
+
+bindMessageHandler(
+buffer,
+handlers: MessageMappingProperties[],
+process: (data: any) => Observable<any>,
+): Observable<any> {
+const message = JSON.parse(buffer.data);
+const messageHandler = handlers.find(
+handler => handler.message === message.event,
+);
+if (!messageHandler) {
+return EMPTY;
+}
+return process(messageHandler.callback(message.data));
+}
+
+close(server) {
+server.close();
+}
+}
+
+```
+
+Code Breakdown
+
+Imports:
+WebSocket from ws: Importing the ws library, which is a simple WebSocket library for Node.js.
+Various NestJS and RxJS imports: These are for integrating the custom adapter with NestJS and handling WebSocket messages reactively using RxJS.
+
+WsAdapter Class:
+This class implements the WebSocketAdapter interface from NestJS, indicating it's a custom adapter for handling WebSocket connections.
+
+Constructor:
+The constructor takes an INestApplicationContext as a parameter, which is the NestJS application context.
+
+create Method:
+This method creates a new WebSocket server using the ws library.
+It takes a port number and an options object, merges them, and passes them to the WebSocket server constructor (new WebSocket.Server).
+
+bindClientConnect Method:
+This method sets up a callback function that will be called whenever a new client connects to the server.
+It listens for the 'connection' event on the WebSocket server and binds the provided callback to this event.
+
+bindMessageHandlers Method:
+This method is responsible for binding message handlers to incoming WebSocket messages.
+It uses RxJS to create an observable from the 'message' event on the WebSocket client.
+mergeMap and filter operators are used to process each incoming message and filter out any undefined results.
+Each processed message is then sent back to the client (client.send).
+
+bindMessageHandler Method:
+This method processes individual messages.
+It parses the message data from the WebSocket frame, finds the appropriate message handler based on the message's event type, and processes the message using the provided process function.
+If no handler is found, it returns an EMPTY observable.
+
+close Method:
+This method simply closes the WebSocket server, terminating all active connections.
+
+</p>
+```

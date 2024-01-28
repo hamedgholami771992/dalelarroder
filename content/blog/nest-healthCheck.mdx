@@ -1,0 +1,65 @@
+---
+title: 'nest-healthCheck'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'healthCheck in nest.js'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+## Healthchecks (Terminus) in NestJS
+
+1- Purpose of Healthchecks:: - Healthchecks are crucial in complex backend setups, often used in services and infrastructure components (like Kubernetes) to continually assess the health of an application. - They usually involve a special endpoint (e.g., `/health/readiness`) that returns an HTTP status code to indicate the application's health status.
+
+2 - What is Terminus?: - Terminus is an integration in NestJS that provides health check functionalities. - It helps define what constitutes a "healthy" or "unhealthy" state for your service, with a set of predefined health indicators.
+
+##Setting Up Terminus in NestJS
+1- Installation:
+Install Terminus using npm:
+`bash
+    npm install --save @nestjs/terminus
+    `
+
+2- Creating a Health Module: - Create a `HealthModule` in your NestJS application and import `TerminusModule`. - Use Nest CLI to generate the module and controller (`nest g module health`, `nest g controller health`).
+
+3- Implementing Health Checks: - Health checks summarize the status of various health indicators. - Indicators could be for databases (like MongoDB), HTTP services, memory usage, etc. - Terminus offers predefined indicators such as `HttpHealthIndicator`, `TypeOrmHealthIndicator`, and more.
+
+4- Setting Up a Health Controller: - Implement a health check in a controller. - Use decorators like `@Get()` and `@HealthCheck()` to define health check routes. - Configure your health indicators within the health check method.
+
+## Example: HTTP Healthcheck
+
+- HTTPHealthIndicator: Checks the health of an HTTP endpoint.
+- Setup:
+  - Ensure `@nestjs/axios` is installed for HTTP requests.
+  - Define a route in your controller that uses `HttpHealthIndicator` to ping a specified URL.
+  - The health endpoint will return an "ok" status if the ping is successful.
+
+## Advanced Health Indicators
+
+1- Database Health Indicators:
+
+- For databases like MongoDB or SQL databases, use the corresponding health indicator (e.g., TypeOrmHealthIndicator).
+- The health check typically runs a simple query to ensure the database is responsive.
+
+2- Disk and Memory Health Indicators:
+
+- Check the usage of disk space or memory and define thresholds for what's considered healthy.
+
+3- Custom Health Indicators:
+
+- You can create custom health indicators for specific use cases not covered by the predefined ones.
+
+## Integration with Application Lifecycle
+
+- Graceful Shutdown:
+  1- Terminus can manage graceful shutdowns, which is especially useful in orchestrated environments like Kubernetes.
+  2- This helps in achieving zero downtime during deployments or when containers are
+
+Conclusion
+Terminus integration in NestJS provides a structured and straightforward way to implement health checks for various aspects of your application.
+These health checks are essential for monitoring the application's state and ensuring its reliability, especially in complex and distributed architectures.
+By leveraging Terminus, you can define detailed health check mechanisms that align with the specific needs and configurations of your services.

@@ -1,0 +1,63 @@
+---
+title: 'nest-automock'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'openapi in nest.js'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+Async Local Storage (ALS) in Node.js
+
+What is AsyncLocalStorage?:
+AsyncLocalStorage is a Node.js API that facilitates tracking of context across asynchronous operations.
+It's similar to thread-local storage in other programming languages.
+It allows you to store and access data specific to an individual execution chain (e.g., a request in a web server) without having to pass this data through function parameters.
+
+How Does it Work?:
+You use AsyncLocalStorage#run to wrap a function call.
+The code executed within this wrapped call has access to a storage area specific to that execution chain.
+This means you can set and retrieve data that is scoped to a specific asynchronous flow, like a web request.
+
+Using ALS in NestJS
+
+Application in NestJS:
+
+In NestJS, if you find a place in the request's lifecycle to wrap the code with AsyncLocalStorage#run, you can create and access state unique to that request.
+This can serve as an alternative to REQUEST-scoped providers, allowing for cleaner and more isolated handling of request-specific data.
+
+Custom Implementation Example:
+Create a new instance of AsyncLocalStorage and encapsulate it in a NestJS module (AlsModule).
+Use middleware in NestJS to wrap incoming requests with AsyncLocalStorage#run, allowing the entire request handling pipeline to have access to a unique storage per request.
+Access the storage anywhere in your NestJS application to retrieve or set data specific to the current request.
+
+ALS Middleware in NestJS:
+Implement a middleware that uses AsyncLocalStorage#run to wrap the next function, initializing a storage with values based on the request (e.g., a user ID from the request headers).
+This setup allows any part of your NestJS application handling that request to access the storage via AsyncLocalStorage.
+
+Usage in Services:
+Services can inject AsyncLocalStorage and use getStore() to access the storage specific to the current request.
+This allows services to operate with data that is isolated to each request without explicitly passing this data through each function call.
+NestJS CLS Package
+
+What is nestjs-cls?:
+It's a third-party package that provides an abstraction over the raw AsyncLocalStorage API, offering improvements like initialization for different transports and strong typing support.
+It abstracts ALS into a ClsModule and a ClsService.
+
+Usage:
+Import ClsModule in your root module and configure it.
+Use ClsService to access the storage values in your services.
+
+Testing:
+ClsService can be mocked in unit tests.
+For integration tests where you want to use the real ClsService, wrap the code with ClsService#run or ClsService#runWith to provide a specific context.
+
+Summary
+AsyncLocalStorage in Node.js allows for tracking context-specific data across asynchronous calls without explicitly passing it through function parameters.
+In NestJS, you can use ALS to create and manage request-specific state, offering an alternative to REQUEST-scoped providers.
+The nestjs-cls package provides a more convenient and type-safe way to use ALS in NestJS, with easier configuration and integration.
+ALS and nestjs-cls can be particularly useful for maintaining context in applications with complex asynchronous flows, such as those common in web servers.

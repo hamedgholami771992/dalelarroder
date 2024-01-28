@@ -1,0 +1,137 @@
+---
+title: 'TypeOrm vs MicroOrm'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'TypeOrm vs MicroOrm'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+## 1- MicroOrm has higher performance
+
+The performance advantage of using an EntityManager, as seen in ORMs like MikroORM, often comes from its implementation of the Identity Map and Unit of Work patterns.
+Let's break down these concepts through pseudo-code and algorithmic analysis to understand how they contribute to performance optimization.
+
+### Identity Map Pattern
+
+The Identity Map pattern ensures that each object is loaded only once per session.
+This reduces the number of database queries and ensures consistency across the application.
+
+Pseudo-Code for Identity Map
+
+```pseudo
+class EntityManager {
+    identityMap = {}
+
+    function findOne(entityClass, id) {
+        if identityMap[entityClass][id] exists:
+            return identityMap[entityClass][id] // Return cached entity
+        else:
+            entity = loadEntityFromDatabase(entityClass, id)
+            identityMap[entityClass][id] = entity // Cache for future use
+            return entity
+    }
+}
+
+```
+
+Algorithm Analysis:
+
+- Without Identity Map: Every call to `findOne` results in a database query, regardless of whether the entity was previously retrieved or not.
+
+```pseudo
+Time Complexity: O(n) for n database queries
+```
+
+- With Identity Map: Subsequent calls for the same entity ID will return the cached entity, avoiding additional database queries.
+
+```pseudo
+Time Complexity: O(1) for cached entities
+```
+
+Identity Map Pattern
+The Identity Map pattern ensures that each object is loaded only once per session.
+This reduces the number of database queries and ensures consistency across the application.
+
+Pseudo-Code for Identity Map
+
+```pseudo
+class EntityManager {
+    identityMap = {}
+
+    function findOne(entityClass, id) {
+        if identityMap[entityClass][id] exists:
+            return identityMap[entityClass][id] // Return cached entity
+        else:
+            entity = loadEntityFromDatabase(entityClass, id)
+            identityMap[entityClass][id] = entity // Cache for future use
+            return entity
+    }
+}
+```
+
+Algorithm Analysis:
+
+- Without Identity Map: Every call to `findOne` results in a database query, regardless of whether the entity was previously retrieved or not.
+
+```pseudo
+Time Complexity: O(n) for n database queries
+```
+
+- Without Identity Map: Every call to `findOne` results in a database query, regardless of whether the entity was previously retrieved or not.
+
+```pseudo
+Time Complexity: O(1) for cached entities
+```
+
+### Unit of Work Pattern
+
+The Unit of Work pattern keeps track of changes made to entities since they were loaded and then efficiently commits these changes in a single operation.
+
+Pseudo-Code for Unit of Work
+
+```pseudo
+class EntityManager {
+    unitOfWork = {}
+
+    function persist(entity) {
+        trackChanges(entity)
+    }
+
+    function flush() {
+        for each entity in unitOfWork:
+            if entity is modified:
+                updateEntityInDatabase(entity)
+            elseif entity is new:
+                insertEntityIntoDatabase(entity)
+            elseif entity is deleted:
+                deleteEntityFromDatabase(entity)
+        clearUnitOfWork()
+    }
+}
+```
+
+Algorithm Analysis:
+
+- Without Unit of Work: Each change to an entity requires a separate database operation.
+
+```pseudo
+Time Complexity: O(n) for n changes
+```
+
+- With Unit of Work: Changes are batched and executed in a single operation, reducing the number of database transactions.
+
+```pseudo
+Time Complexity: O(1) for batched operations
+```
+
+Conclusion
+`Identity Map`: By caching entities, the EntityManager reduces the number of database reads, which is particularly beneficial for read-heavy applications where the same entities are frequently accessed.
+`Unit of Work`: Aggregating changes and committing them in a single operation minimizes the database write load. This is especially advantageous in write-heavy scenarios where numerous entity modifications occur.
+In summary, the EntityManager in MikroORM optimizes performance by reducing unnecessary database interactions through intelligent caching and batch processing. This leads to quicker response times and less load on the database, which is particularly important in applications with heavy database usage.
+
+---

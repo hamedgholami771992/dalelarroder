@@ -1,0 +1,95 @@
+---
+title: 'nest-routing'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'routing in nest.js'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+Certainly! Let's break down the section about the Router module in NestJS, which is specifically relevant for HTTP-based applications like REST APIs.
+
+# Concept of Routing in NestJS
+
+## 1- Basic Routing:
+
+- In NestJS, routes for HTTP handlers (like those in controllers) are defined by combining the path specified in the controller's `@Controller` decorator and the path in the method's decorator (like `@Get`, `@Post`, etc.).
+  For example, a @Get('users') in a controller with `@Controller('api')` will result in the route `/api/users`.
+
+## 2- Global Prefix:
+
+- You can set a global prefix for all routes in your application. This is useful for versioning or segmenting the API at a high level.
+
+# Router Module Usage
+
+## 1- Module-Level Prefixes:
+
+- Sometimes, it's useful to define a prefix at the module level, especially when you have a group of routes that belong to a specific part of your application, like "Dashboard".
+- Instead of repeating the `/dashboard` prefix in each controller, you can use the `RouterModule` to set a prefix for all routes within a module.
+
+## 2- Example with DashboardModule:
+
+- In your `AppModule`, you can import `DashboardModule` and use `RouterModule.register()` to associate a path with the module.
+- The `RouterModule` allows you to define that all routes within `DashboardModule` should be prefixed with `/dashboard`.
+
+```ts
+@Module({
+  imports: [
+    DashboardModule,
+    RouterModule.register([
+      {
+        path: 'dashboard',
+        module: DashboardModule,
+      },
+    ]),
+  ],
+})
+export class AppModule {}
+```
+
+## 3- Hierarchical Structures:
+
+- NestJS allows for hierarchical routing, where modules can have child modules, inheriting the parent's prefix.
+- For instance, if you have an `AdminModule` that includes `DashboardModule` and `MetricsModule`, you can structure routes hierarchically.
+
+## 4- Hierarchical Structures:
+
+- You can define `AdminModule` as a parent module and `DashboardModule` and `MetricsModule` as children.
+- Routes in `DashboardModule` will then have the prefix `/admin/dashboard`, and routes in `MetricsModule` will have `/admin/metrics`.
+
+```ts
+@Module({
+  imports: [
+    AdminModule,
+    DashboardModule,
+    MetricsModule,
+    RouterModule.register([
+      {
+        path: 'admin',
+        module: AdminModule,
+        children: [
+          {
+            path: 'dashboard',
+            module: DashboardModule,
+          },
+          {
+            path: 'metrics',
+            module: MetricsModule,
+          },
+        ],
+      },
+    ])
+  ],
+})
+
+```
+
+Conclusion
+The Router module in NestJS is a powerful feature for organizing and structuring routes in your application.
+It allows for setting module-level prefixes and creating hierarchical route structures, making it easier to manage complex route setups.
+However, it's important to use this feature judiciously to maintain clarity and simplicity in your codebase.
+Overusing hierarchical routing or deep nesting can make the code difficult to maintain and understand.

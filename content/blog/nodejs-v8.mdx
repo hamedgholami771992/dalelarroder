@@ -1,0 +1,62 @@
+---
+title: 'node-v8'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'node.js v8'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+# Understanding V8 Functionalities in Node.js with Real-Life Analogies
+
+## V8 Engine in Node.js
+
+- **V8**: Think of V8 as the engine of a car. It's the core that powers Node.js and browsers like Chrome, processing JavaScript code to execute it.
+
+## Key Functionalities
+
+### 1. Heap Snapshots and Statistics
+
+- **Heap**: Comparable to a computer's storage space or a warehouse, storing objects, variables, and function data.
+- **v8.getHeapSnapshot()**: Like taking an inventory of everything in a warehouse at a specific time, providing a snapshot of the V8 memory heap.
+- **v8.getHeapStatistics()**: Similar to getting a summary report of a warehouse's usage - detailing space usage and availability.
+
+### 2. Garbage Collection Profiling
+
+- **Garbage Collection**: Akin to a city's recycling system, periodically collecting and processing unused memory to maintain efficiency.
+- **v8.GCProfiler**: Functions like an audit report of the recycling system, detailing each collection event and its impact.
+
+### 3. Serialization API
+
+- **Serialization (v8.serialize)**: Comparable to packing a complex sculpture into a box for transport, turning JavaScript objects into a storable or transferable format.
+- **Deserialization (v8.deserialize)**: Like unpacking and reassembling the sculpture to its original form.
+
+### 4. Promise Hooks
+
+- **Promises**: Similar to contracts in real life, representing the completion or failure of asynchronous operations.
+- **promiseHooks**: Act as checkpoints or observers monitoring the lifecycle of promises - their creation, fulfillment, or failure.
+
+### 5. Startup Snapshot API
+
+- **v8.startupSnapshot**: Similar to creating a template or blueprint of a pre-configured system for faster subsequent startups.
+
+### 6. Flag Management
+
+- **v8.setFlagsFromString()**: Like a control panel with switches for different functionalities, allowing dynamic toggling of V8 engine features.
+
+## Real-World Analogy
+
+Imagine a high-tech factory (Node.js) powered by an advanced engine (V8). This factory processes various materials (JavaScript code) and has different sections:
+
+- A storage area (Heap) for materials and products.
+- A recycling unit (Garbage Collection) for efficient waste management.
+- A shipping and receiving department (Serialization API) for packaging and unpacking products.
+- An observation deck (Promise Hooks) for monitoring specific contracts (promises).
+- A design lab (Startup Snapshot API) for creating efficient startup blueprints.
+- A control room (Flag Management) for fine-tuning the factory's engine settings.
+
+Each component ensures the smooth, efficient operation of the factory, adapting to different requirements as needed.

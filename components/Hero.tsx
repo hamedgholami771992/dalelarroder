@@ -35,7 +35,12 @@ export default function Hero(): ReactElement {
                 Hamed Gholami
               </h1>
               <h2 className="text-3xl font-medium opacity-80 sm:text-6xl md:text-6xl xl:text-7xl">
-                I build things for the web.
+                Web Symphony: Front-End Art, System Design, Server Logic.
+                {/* Full-Stack Finesse: Bridging Front-End Art and Back-End Logic */}
+                {/* Full-Stack Craft: Front to Back Elegance. */}
+                {/* Crafting Digital Visions: Molding Front-End Artistry and Back-End Brains. */}
+                {/* Crafting Web Elegance: Full-Stack Precision, Front-End Flair. */}
+                {/* Web Harmony: Front-End, System Design, Backend Mastery. */}
               </h2>
               <Link
                 href="/about"

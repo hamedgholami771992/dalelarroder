@@ -1,0 +1,132 @@
+---
+title: 'nest-typeorm'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'typeorm in nest.js'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+# TypeORM in NestJS
+
+## 1- Introduction to TypeORM:
+
+- TypeORM is a mature Object Relational Mapper (ORM) for Node.js and is particularly well-suited for TypeScript, making it a good choice for NestJS.
+- It allows for easy interaction with SQL databases using high-level entities and repositories.
+
+## 2- Getting Started:
+
+- First, you need to install TypeORM and a database driver (like `mysql2` for MySQL).
+- Example:
+  ```cmd
+    npm install --save typeorm mysql2
+  ```
+
+## 3- Establishing Database Connection:
+
+- Use `DataSource` from TypeORM to configure and establish a database connection.
+- `initialize()` function of `DataSource` returns a Promise, so the provider must be asynchronous.
+- Example (`database.providers.ts`):
+
+```ts
+import { DataSource } from 'typeorm';
+
+export const databaseProviders = [
+  {
+    provide: 'DATA_SOURCE',
+    useFactory: async () => {
+      const dataSource = new DataSource({
+        // ...database configuration...
+      });
+      return dataSource.initialize();
+    },
+  },
+];
+```
+
+- Note: Avoid setting `synchronize: true` in production as it can lead to data loss.
+
+## 4- Database Module:
+
+- Create a `DatabaseModule` to export the database providers, making them accessible throughout the application.
+- Example (`database.module.ts`):
+
+```ts
+import { Module } from '@nestjs/common';
+import { databaseProviders } from './database.providers';
+
+@Module({
+  providers: [...databaseProviders],
+  exports: [...databaseProviders],
+})
+export class DatabaseModule {}
+```
+
+## 5- Repository Pattern:
+
+- TypeORM supports the repository pattern, where each entity (like `Photo`) has its own repository.
+- Define an entity (`photo.entity.ts`) using TypeORM decorators.
+- Create a repository provider for the entity.
+- Example (`photo.providers.ts`):
+
+```ts
+import { DataSource } from 'typeorm';
+import { Photo } from './photo.entity';
+
+export const photoProviders = [
+  {
+    provide: 'PHOTO_REPOSITORY',
+    useFactory: (dataSource: DataSource) => dataSource.getRepository(Photo),
+    inject: ['DATA_SOURCE'],
+  },
+];
+```
+
+## 6- Service and Repository Injection:
+
+- Inject the repository into services (e.g., `PhotoService`) using the `@Inject()` decorator.
+- Use the repository to perform database operations.
+- Example (`photo.service.ts`):
+
+```ts
+import { Injectable, Inject } from '@nestjs/common';
+import { Repository } from 'typeorm';
+import { Photo } from './photo.entity';
+
+@Injectable()
+export class PhotoService {
+  constructor(@Inject('PHOTO_REPOSITORY') private photoRepository: Repository<Photo>) {}
+
+  async findAll(): Promise<Photo[]> {
+    return this.photoRepository.find();
+  }
+}
+```
+
+## 7- Final Module Setup:
+
+- Assemble your feature module (e.g., `PhotoModule`) by importing the `DatabaseModule` and adding the service and repository providers.
+- Example (photo.module.ts):
+
+```ts
+import { Module } from '@nestjs/common';
+import { DatabaseModule } from '../database/database.module';
+import { photoProviders } from './photo.providers';
+import { PhotoService } from './photo.service';
+
+@Module({
+  imports: [DatabaseModule],
+  providers: [...photoProviders, PhotoService],
+})
+export class PhotoModule {}
+```
+
+Conclusion
+This approach to integrating TypeORM in NestJS involves setting up a custom `DatabaseModule`,
+defining entities and their repositories, and injecting these repositories into services.
+While this method provides flexibility and a deep understanding of how TypeORM works with NestJS,
+it introduces additional complexity compared to using the `@nestjs/typeorm` package, which simplifies and streamlines much of this process.

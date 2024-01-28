@@ -1,0 +1,82 @@
+---
+title: 'nest-serveStatic'
+date: '2022-07-31'
+tags: ['nest.js', 'nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'serveStatic in nest.js'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+Sure, let's go through the part of the guide that explains how to serve static content, such as a Single Page Application (SPA), using NestJS with the @nestjs/serve-static package.
+
+# Serve Static Content with NestJS
+
+## Installation
+
+    To serve static files in a NestJS application, you'll need to install the @nestjs/serve-static package.
+    This package provides the ServeStaticModule that will enable your NestJS app to serve static content.
+
+    Here's how you install the package using npm:
+    ```bash
+    $ npm install --save @nestjs/serve-static
+    ```
+
+## Bootstrap
+
+After installing the package, you need to set up the ServeStaticModule in your NestJS application.
+This is usually done in the root module of your application, often called AppModule.
+You'll import ServeStaticModule and use the forRoot() method to configure it.
+
+Here's an example of how to do this:
+
+```bash
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+
+@Module({
+  imports: [
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'client'), // The 'client' directory should contain your SPA's static assets
+    }),
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+```
+
+In the example above, rootPath is set to point to a directory named client which is assumed to be at the root level of your project (one level up from the src directory where your server code resides).
+This directory should contain the built static files of your SPA.
+
+## Configuration
+
+    The ServeStaticModule can be fine-tuned with various options:
+
+    <ul>
+        <li>serveRoot: Defines the path under which the static app will be served.</li>
+        <li>renderPath: Indicates the path that should be handled by the static app (default is * which means all paths).</li>
+        <li>exclude: Specifies an array of paths to exclude from static serving.</li>
+        <li>setHeaders: Function to set custom headers on the HTTP response.</li>
+        <li>cacheControl: Enables or disables setting the Cache-Control header by the module.</li>
+        <li>These options allow you to customize how your static files are served according to your application's needs.</li>
+    </ul>
+
+## Notice
+
+By default, the ServeStaticModule will serve the index.html file for all paths (\*) which is typical behavior for a SPA where client-side routing handles different "paths" of the application. '
+If there are specific server routes defined in your controllers, those will take precedence over the static files.
+
+For example, if you have a route in your controllers for /api/users, that will be served by your controller logic, not your static content.
+However, if a user navigates to /about, and there is no corresponding server-side route, the static module will serve the index.html file, and the client-side router would handle the /about route.
+
+It is important to note that for client-side routing to work properly, the server must correctly serve the index.html for all navigation routes managed by the SPA's router.
+That's why the default renderPath is set to \*, to ensure that navigation requests that do not match server-side routes fall back to the SPA.
+
+This setup allows you to host both your API and your SPA within the same NestJS application, making it convenient for deployment and management.
