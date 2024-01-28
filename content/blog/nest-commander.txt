@@ -2,7 +2,7 @@
 title: 'nest-automock'
 date: '2022-07-31'
 tags: ['nest.js', 'nodejs', Snippets]
-draft: false
+draft: true
 author: 'Hamed Gholami'
 summary: 'openapi in nest.js'
 ---
