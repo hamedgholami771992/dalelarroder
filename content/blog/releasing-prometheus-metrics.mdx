@@ -1,0 +1,66 @@
+---
+title: 'releasing-prometheus-metrics'
+date: '2022-07-31'
+tags: ['nodejs', Snippets]
+draft: false
+author: 'Hamed Gholami'
+summary: 'mediasoup-nest'
+---
+
+## Overview
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={4} />
+
+# Managing High-Cardinality Prometheus Metrics in Node.js Applications
+
+Prometheus is a powerful monitoring tool that allows developers to collect and observe metrics from their applications. However, using metrics with high cardinality labels, such as unique identifiers, can lead to increased memory consumption and application slowdowns. This article will guide you through setting up a scheduled job to clear or reset Prometheus gauge metrics, specifically those with high-cardinality labels like `talkId`, to maintain optimal application performance.
+
+## Defining Your Gauge Metric
+
+First, ensure you have defined the gauge metric in your Node.js application. For our purposes, we will use a gauge metric with a `talkId` label, which represents a unique identifier for each talk in an application:
+
+```javascript
+const { Gauge } = require('prom-client');
+
+const finishedTalkIds: string[] = []
+
+const talkIdGauge = new Gauge({
+  name: 'my_talkid_gauge',
+  help: 'Gauge metric with talkId label',
+  labelNames: ['talkId'],
+});
+```
+
+## Implementing the Clearing Function
+
+To manage memory usage effectively, you need to implement a function to clear or reset the gauge metrics periodically. This can be achieved by either resetting all metric values to their initial state or removing specific labels if they are no longer needed:
+
+```javascript
+function clearTalkIdGaugeMetrics(talkId: string) {
+  // Reset the gauge values for all talkIds
+  talkIdGauge.remove(talkId);
+
+  // This approach requires knowledge of which labels to remove
+}
+```
+
+## Scheduling the Metric Clearance
+
+With the clearing function in place, the next step is to schedule this function to run at regular intervals, such as every hour. This can be easily done using Node.js' `setInterval` function:
+
+```javascript
+// Schedule the clearing function to run every hour (3600000 milliseconds)
+setInterval(clearFinishedTalkMetrics, 3600000);
+
+const clearFinishedTalkMetrics = () => {
+  for (const talkId of finishedTalkIds) {
+    clearTalkIdGaugeMetrics(talkId);
+  }
+};
+```
+
+## Conclusion
+
+Managing Prometheus metrics efficiently is crucial for maintaining the performance of your Node.js applications, especially when dealing with high-cardinality labels. By implementing a scheduled job to clear these metrics periodically, you can prevent unnecessary memory consumption and ensure your application continues to run smoothly.
+
+Remember, while this guide focuses on gauge metrics and the `talkId` label, the principles can be applied to any metric type and label with high cardinality. Adjust the implementation as needed to fit the specific requirements of your application.
